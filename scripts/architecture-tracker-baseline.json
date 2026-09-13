@@ -27,7 +27,7 @@
     },
     "cli.js": {
       "band": "decompose",
-      "lines": 819,
+      "lines": 817,
       "signals": [
         "FANOUT:27",
         "OCP:40"
@@ -479,7 +479,7 @@
     },
     "mcpServer.js": {
       "band": "decompose",
-      "lines": 810,
+      "lines": 808,
       "signals": [
         "FANOUT:34",
         "OCP:23"

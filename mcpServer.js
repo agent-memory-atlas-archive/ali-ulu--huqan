@@ -1,8 +1,5 @@
-const {
-  readCompatibleEnvironmentVariable,
-  validateEnvironmentCompatibility,
-} = require('./lib/environment-compat');
-validateEnvironmentCompatibility();
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { assertBootEnvironment, reportBootConflict } = require('./lib/boot-validation');
 
 const fs = require('fs');
 const path = require('path');
@@ -645,6 +642,7 @@ function validateMcpJsonShape(value) {
 }
 
 function runStdio() {
+  assertBootEnvironment();
   const server = createServer();
   let frame = Buffer.alloc(0);
   let discardingOversizedFrame = false;
@@ -774,7 +772,7 @@ const mcpProcessFailureHandlers = createProcessFailureHandlers({
 
 if (require.main === module) {
   mcpProcessFailureHandlers.bind();
-  runStdio();
+  try { runStdio(); } catch (error) { if (!reportBootConflict('mcp', error)) throw error; process.exitCode = 1; }
 }
 
 module.exports = {

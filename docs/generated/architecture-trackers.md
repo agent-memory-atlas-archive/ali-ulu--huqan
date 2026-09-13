@@ -16,8 +16,8 @@ Tracked in total: **92**
 | `workflow-tools.js` | 880 | — |
 | `lib/code-change-gate.js` | 834 | — |
 | `lib/sandbox-isolation.js` | 831 | — |
-| `cli.js` | 819 | OCP:40 FANOUT:27 |
-| `mcpServer.js` | 810 | OCP:23 FANOUT:34 |
+| `cli.js` | 817 | OCP:40 FANOUT:27 |
+| `mcpServer.js` | 808 | OCP:23 FANOUT:34 |
 | `kernel.v2.js` | 801 | ISP:6 DIP |
 
 ## Recorded debt, 401-800 lines (58)

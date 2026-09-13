@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 
-const {
-  readCompatibleEnvironmentVariable,
-  validateEnvironmentCompatibility,
-} = require('./lib/environment-compat');
-validateEnvironmentCompatibility();
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { assertBootEnvironment, reportBootConflict } = require('./lib/boot-validation');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -781,6 +778,7 @@ class CLI {
 }
 
 async function runCliArgv(argv = [], io = {}) {
+  assertBootEnvironment();
   return runWorkflowCliArgv(argv, io, {
     createCli: options => new CLI(options),
     version: require('./package.json').version,
@@ -808,7 +806,7 @@ const cliProcessFailureHandlers = createProcessFailureHandlers({
 if (require.main === module) {
   cliProcessFailureHandlers.bind();
   main().catch(error => {
-    console.error(`CLI error: ${error?.message || error}`);
+    if (!reportBootConflict('cli', error)) console.error(`CLI error: ${error?.message || error}`);
     process.exitCode = 1;
   });
 }
