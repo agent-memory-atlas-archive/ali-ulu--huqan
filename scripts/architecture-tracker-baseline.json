@@ -204,25 +204,18 @@
         "OCP:6"
       ]
     },
-    "lib/graph-json-persistence.js": {
-      "band": "structural",
-      "lines": 125,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "lib/graph-json-snapshot.js": {
       "band": "structural",
       "lines": 109,
       "signals": [
-        "ISP:4"
+        "ISP:3"
       ]
     },
     "lib/graph-json-transaction.js": {
       "band": "structural",
       "lines": 160,
       "signals": [
-        "ISP:6"
+        "ISP:5"
       ]
     },
     "lib/http/route-auth-policy.js": {
