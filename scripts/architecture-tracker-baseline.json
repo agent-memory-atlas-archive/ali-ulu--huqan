@@ -273,13 +273,6 @@
       "lines": 412,
       "signals": []
     },
-    "lib/kernel-v2-native.js": {
-      "band": "structural",
-      "lines": 152,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "lib/kernel-v2-type-negation.js": {
       "band": "structural",
       "lines": 91,
