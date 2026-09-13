@@ -23,7 +23,7 @@ const { createHttpIngestOversightCase } = require('./lib/http-human-oversight-ad
 const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProvenance } = require('./lib/provenance-query');
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
-const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
+const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -130,7 +130,8 @@ function getHttpApprovalRuntimeConfig() {
 
 const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
 
-// --- Güvenlik sabitleri ---
+const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
+const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
 const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
   clearExpiredRateLimitEntries();
@@ -340,6 +341,8 @@ const handleObservabilityRoute = observabilityRuntime.handleRoute;
 const { getHtmlPage, handleStaticAssetRequest } = require('./lib/http/static-assets');
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson }), handleFitnessDashboardRoute = createFitnessDashboardRoute({ kernel, writeJson, buildCorsHeaders, JSON_CONTENT_TYPE });
 const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnvironmentVariable), async (req, res) => {
+  if (!concurrencyLimiter.tryAcquire()) { res.writeHead(503, { 'Content-Type': JSON_CONTENT_TYPE, 'Retry-After': String(Math.ceil(DEFAULT_RETRY_AFTER_MS / 1000)), 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: false, error: { code: 'service_unavailable', message: 'Server at capacity' } })); return; }
+  let cr=false;const rel=()=>{if(!cr){cr=true;concurrencyLimiter.release();}};res.on('finish',rel);res.on('close',rel);
   const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
@@ -371,27 +374,13 @@ const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnviron
     return;
   }
 
-  // --- Central route authorization gate (issue #330) ---
-  // Authorization is decided by lib/http/route-auth-policy.js before any
-  // handler runs, so a newly added endpoint is authenticated by default
-  // instead of being silently public. Unknown paths are deliberately NOT
-  // challenged: they fall through to the generic 404 below, so a 401 never
-  // confirms the existence of an unrouted path.
   const routeAuthPolicy = resolveRouteAuthPolicy(reqUrl.pathname, req.method, {
     workspaceId: sanitizeInput(reqUrl.searchParams.get('workspaceId') || ''),
     externalClientRouteEnabled: externalClientBoundary !== null,
     ...optionalRoutes.authContext,
   });
-  // The memory-context route hardens every one of its own responses with
-  // no-store/nosniff, but this central gate answers 401 before that handler
-  // ever runs, so the headers have to be carried here too -- same reason the
-  // rate-limit branch above special-cases the prefix.
   if (routeAuthPolicy.authRequired
     && !denyIfUnauthorized(req, res, memoryContextSecurityHeaders(rawPath), routeAuthPolicy.ruleId === 'observability' ? { errorCode: 'UNAUTHORIZED' } : {})) return;
-  // An undeclared path must never reach a handler. If one is added without a
-  // policy entry it is answered as 404 here rather than executing
-  // unauthenticated, so the declaration is enforced at runtime and not only by
-  // test/route-auth-policy.test.js. 404 (not 401) preserves non-disclosure.
   if (!routeAuthPolicy.known) {
     res.writeHead(404, { 'Content-Type': JSON_CONTENT_TYPE, ...buildCorsHeaders(req) });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -1018,6 +1007,8 @@ server.configureHttpAgentIdentity = configureHttpAgentIdentity;
 // produced). server.js owns this kernel directly now (#326); it is no
 // longer reachable by intercepting a CLI instance server.js used to build.
 server.kernel = kernel;
+server.concurrencyLimiter = concurrencyLimiter;
+server.requestLimits = requestLimits;
 module.exports = server;
 module.exports.getRateLimitKey = getRateLimitKey;
 // Exposed so the index-page cache (#420) can be asserted directly, without

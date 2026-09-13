@@ -500,7 +500,7 @@
     },
     "server.js": {
       "band": "decompose",
-      "lines": 1026,
+      "lines": 1017,
       "signals": [
         "FANOUT:52"
       ]
