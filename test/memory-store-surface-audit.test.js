@@ -5,7 +5,7 @@
  * what production actually calls, and what the published type declaration
  * promises. The three are not the same, and the gaps are the point of the file.
  *
- * MemoryStore has 37 public methods. Seven of them have a non-test caller. One --
+ * MemoryStore has 38 public methods. Eight of them have a non-test caller. One --
  * `search()` -- has no caller anywhere, not even a test: it is a three-line
  * alias for `query()`. The rest are exercised only by the memory suite, which
  * means the tests are the only thing currently defining what they must do.
@@ -51,6 +51,9 @@ const PRODUCTION_SURFACE = Object.freeze({
   queryLinks: 'server.js (kernel.memory.queryLinks)',
   close: 'kernel.js',
   reopen: 'lib/sqlite-restore.js (kernel.memory.reopen), for cli.js restore (#1848)',
+  // Public counterpart of _makeMemoryKey, added for the sqlite warmup (#2348)
+  // so it stops reaching into the private surface.
+  makeMemoryKey: 'lib/memory-store-sqlite-warmup.js',
 });
 
 /**
