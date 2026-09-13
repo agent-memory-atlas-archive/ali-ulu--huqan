@@ -88,6 +88,7 @@ test('the unicode vector actually carries non-ASCII in a hashed field', () => {
   // differently, so the content has to be there to test anything.
   const bundle = read('receipt-bundle.unicode.valid.json');
   const serialized = JSON.stringify(bundle.receipts);
+  // oxlint-disable-next-line no-control-regex -- deliberate: a negated ASCII range; the control characters in it are incidental to the intent (non-ASCII detection)
   assert.ok(/[^\u0000-\u007f]/.test(serialized), 'no non-ASCII content in the receipts');
 });
 

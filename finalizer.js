@@ -96,8 +96,8 @@ function cleanFactText(text) {
   const value = normalizeText(text);
   if (!value) return '';
   return value
-    .replace(/^(ask|verify|reason|dream|compare|learn|plan|summary|result|analysis)\s*[:\-]\s*/i, '')
-    .replace(/^[\-•\u2022]+\s*/, '')
+    .replace(/^(ask|verify|reason|dream|compare|learn|plan|summary|result|analysis)\s*[:-]\s*/i, '')
+    .replace(/^[-•\u2022]+\s*/, '')
     .replace(/\s+/g, ' ')
     .trim();
 }

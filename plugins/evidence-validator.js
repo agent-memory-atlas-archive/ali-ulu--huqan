@@ -68,6 +68,7 @@ function hasSuspiciousIdnHost(parsed) {
   // is a conservative reject-and-let-a-human-decide signal, not a claim
   // that every IDN host is malicious.
   const hasPunycodeLabel = host.split('.').some((label) => label.toLowerCase().startsWith('xn--'));
+  // oxlint-disable-next-line no-control-regex -- deliberate: a negated ASCII range; the control characters in it are incidental to the intent (non-ASCII detection)
   const hasNonAscii = /[^\x00-\x7F]/.test(host);
   return hasPunycodeLabel || hasNonAscii;
 }

@@ -1,5 +1,5 @@
 const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
-﻿const { describe, it, after } = require('node:test');
+const { describe, it, after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');

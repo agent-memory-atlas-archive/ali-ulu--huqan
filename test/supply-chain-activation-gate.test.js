@@ -12,8 +12,10 @@ const component = { componentType: 'plugin', name: 'safe-plugin', version: '1.0.
 
 async function withEnv(values, fn) {
   const old = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
-  try { for (const [key, value] of Object.entries(values)) value === undefined ? delete process.env[key] : process.env[key] = value; return await fn(); }
-  finally { for (const [key, value] of Object.entries(old)) value === undefined ? delete process.env[key] : process.env[key] = value; }
+  // Written as `if`/`else` rather than a bare ternary: the ternary's value was
+  // discarded, which is what `no-unused-expressions` reported. Same behaviour.
+  try { for (const [key, value] of Object.entries(values)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } return await fn(); }
+  finally { for (const [key, value] of Object.entries(old)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } }
 }
 
 describe('supply-chain activation gate', () => {
