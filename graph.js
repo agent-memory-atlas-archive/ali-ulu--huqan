@@ -453,10 +453,10 @@ class Graph {
   /**
    * Fails closed on an existing-but-unreadable journal (#731); only a genuinely
    * absent journal yields empty history. See lib/mutation-journal.js.
+   * Public read surface for the JSON journal (#2352).
    */
-  _readJsonJournal() {
-    return readMutationJournal(this._jsonJournalPath());
-  }
+  readJsonJournal() { return readMutationJournal(this._jsonJournalPath()); }
+  _readJsonJournal() { return this.readJsonJournal(); }
 
   _writeJsonJournal(journal) {
     atomicWriteFileSync(this._jsonJournalPath(), JSON.stringify(journal));
