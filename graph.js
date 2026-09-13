@@ -976,7 +976,7 @@ class Graph {
     return embeddings;
   }
 
-  _restoreEmbeddings(embeddings) {
+  restoreEmbeddings(embeddings) {
     for (const [id, vec] of Object.entries(embeddings)) {
       if (this._nodes[id]) {
         this._nodes[id].embedding = new Float64Array(vec);
