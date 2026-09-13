@@ -24,6 +24,7 @@ const { buildTrustReceipt, queryAuditTrailPage, queryCandidateClaims, queryProve
 const { readReceiptById } = require('./lib/receipt/receipt-read-index');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts } = require('./lib/http/server-timeouts'), { resolveRequestUrl } = require('./lib/http/request-origin');
+const { resolveRequestLimits, createConcurrencyLimiter, DEFAULT_RETRY_AFTER_MS } = require('./lib/http/request-limits');
 const { receiptReadFailure } = require('./lib/http/receipt-read-failures');
 const { createWorkbenchReadHttpRouter } = require('./lib/workbench/workbench-read-http-router'), { handlePublicBadgeRequest } = require('./lib/http/public-badge-route'), { handleLlmProxyRequest } = require('./lib/llm-proxy/proxy-mount');
 const { resolveRouteAuthPolicy } = require('./lib/http/route-auth-policy');
@@ -129,6 +130,10 @@ function getHttpApprovalRuntimeConfig() {
 }
 
 const recordIngestApprovalAudit = createHttpIngestApprovalAuditWriter({ graph: kernel.graph, getIdentityConfig: () => httpAgentIdentityConfig, hashResult: sha256, ledger: trustEvidenceLedger });
+
+// Gate A item 3: global concurrency ceiling so load makes service slow rather than dead.
+const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
+const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
 
 // --- Güvenlik sabitleri ---
 const backgroundTimers = createBackgroundTimers();
@@ -340,6 +345,16 @@ const handleObservabilityRoute = observabilityRuntime.handleRoute;
 const { getHtmlPage, handleStaticAssetRequest } = require('./lib/http/static-assets');
 const handleAnswerRoute = require('./lib/http/answer-route').createAnswerRoute({ kernel, legacyVerify, sanitizeInput, parseJsonRequest, denyIfUnauthorized, buildCorsHeaders, JSON_CONTENT_TYPE, DEFAULT_MAX_JSON_BODY, writeJson }), handleFitnessDashboardRoute = createFitnessDashboardRoute({ kernel, writeJson, buildCorsHeaders, JSON_CONTENT_TYPE });
 const server = http.createServer(resolveHttpServerTimeouts(readCompatibleEnvironmentVariable), async (req, res) => {
+  // Gate A item 3: global concurrency backpressure — fail-fast 503 when ceiling hit.
+  if (!concurrencyLimiter.tryAcquire()) {
+    res.writeHead(503, { 'Content-Type': JSON_CONTENT_TYPE, 'Retry-After': String(Math.ceil(DEFAULT_RETRY_AFTER_MS / 1000)), 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ ok: false, error: { code: 'service_unavailable', message: 'Server at capacity, retry shortly' } }));
+    return;
+  }
+  let concurrencyReleased = false;
+  const releaseConcurrency = () => { if (!concurrencyReleased) { concurrencyReleased = true; concurrencyLimiter.release(); } };
+  res.on('finish', releaseConcurrency);
+  res.on('close', releaseConcurrency);
   const correlation = createRequestCorrelation(req, res); try {
   res.setHeader('Connection', 'close');
   const rawPath = String(req.url || '').split('?', 1)[0].split('#', 1)[0];
@@ -1018,6 +1033,8 @@ server.configureHttpAgentIdentity = configureHttpAgentIdentity;
 // produced). server.js owns this kernel directly now (#326); it is no
 // longer reachable by intercepting a CLI instance server.js used to build.
 server.kernel = kernel;
+server.concurrencyLimiter = concurrencyLimiter;
+server.requestLimits = requestLimits;
 module.exports = server;
 module.exports.getRateLimitKey = getRateLimitKey;
 // Exposed so the index-page cache (#420) can be asserted directly, without
