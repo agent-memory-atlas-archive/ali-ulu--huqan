@@ -16,7 +16,7 @@ function createStubKernel() {
 }
 
 function callVerifyResult(service, statement, opts, data, evidence, context) {
-  return service._verifyResult(statement, opts, data, evidence, context);
+  return service.verifyResult(statement, opts, data, evidence, context);
 }
 
 function makeContext(overrides = {}) {
