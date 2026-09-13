@@ -16,7 +16,7 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
-const { assertBootEnvironment, formatBootError } = require('../lib/boot-validation');
+const { assertBootEnvironment, formatBootError } = require('../lib/environment-compat');
 
 const CLI = path.join(__dirname, '..', 'cli.js');
 const MCP = path.join(__dirname, '..', 'mcpServer.js');

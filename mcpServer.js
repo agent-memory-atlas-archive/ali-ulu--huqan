@@ -1,5 +1,4 @@
-const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
-const { assertBootEnvironment, reportBootConflict } = require('./lib/boot-validation');
+const { assertBootEnvironment, readCompatibleEnvironmentVariable, reportBootConflict } = require('./lib/environment-compat');
 
 const fs = require('fs');
 const path = require('path');
