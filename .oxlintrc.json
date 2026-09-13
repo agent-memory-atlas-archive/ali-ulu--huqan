@@ -17,11 +17,6 @@
       "argsIgnorePattern": "^_*",
       "varsIgnorePattern": "^_*",
       "caughtErrorsIgnorePattern": "^_*"
-    }],
-    "no-control-regex": "off",
-    "constructor-super": "off",
-    "no-unused-expressions": "off",
-    "no-irregular-whitespace": "off",
-    "no-useless-escape": "off"
+    }]
   }
 }

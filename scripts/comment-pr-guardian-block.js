@@ -23,7 +23,7 @@ function required(env, name) {
 function escapeInline(value) {
   return text(value)
     .replace(/\\/g, '\\\\')
-    .replace(/[`*_{}\[\]()#+\-.!|<>]/g, '\\$&')
+    .replace(/[`*_{}[\]()#+\-.!|<>]/g, '\\$&')
     .replace(/[\r\n]+/g, ' ');
 }
 

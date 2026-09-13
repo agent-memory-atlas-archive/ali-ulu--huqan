@@ -150,7 +150,7 @@ function report({ missing, invalid, unpinned }) {
     lines.push(`${unpinned.length} document(s) name no commit, so they do not say what they are about:`);
     for (const item of unpinned) lines.push(`  ${item.relPath} (\`${item.declared}\`)`);
     lines.push('');
-    lines.push(`A \`${MUST_PIN_A_COMMIT.join('\`, \`')}\` record is a statement about a particular`);
+    lines.push(`A \`${MUST_PIN_A_COMMIT.join('`, `')}\` record is a statement about a particular`);
     lines.push('state of the tree. Name the commit it is about, as:');
     lines.push('  **Canonical base:** `main @ <40-char sha>` — what that commit is');
     lines.push('Do not fill one in from memory: a guessed commit makes an unverifiable');

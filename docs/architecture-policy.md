@@ -44,8 +44,8 @@ So the budget is banded:
 
 `scripts/check-file-size.js` enforces the first two rows as a ratchet at 400:
 
-- A file at or under 400 may not cross it. 542 files are held there.
-- A file above it may not grow. 75 are recorded at today's size.
+- A file at or under 400 may not cross it. 563 files are held there.
+- A file above it may not grow. 74 are recorded at today's size.
 - When one shrinks, its recorded ceiling drops to match. Gains are never
   spendable later.
 - At 400 or below, its entry is removed.
@@ -104,16 +104,28 @@ gate where it had a freeze.
 
 | Rule | Enforced | By |
 |---|---|---|
-| Line ceiling may not rise | yes | `scripts/check-file-size.js` |
-| No require cycles | yes | `scripts/check-import-cycles.js` |
-| Correctness lint | **not yet** | `npm run lint` exists and reports 962 findings; not wired into CI until they are triaged |
-| Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 75 recorded entries |
+| Line ceiling may not rise | yes | `scripts/check-file-size.js`, 637 files measured |
+| No require cycles | yes | `scripts/check-import-cycles.js`, 637 files measured |
+| Correctness lint | yes | `npm run lint` (`oxlint`, `correctness` at error): 0 findings over 1465 files, run by the `Enforce a lint-clean tree` job in `.github/workflows/architecture.yml` |
+| Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 74 recorded entries |
 | Baseline review dates | yes | both baselines; an expired or missing entry fails the gate |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
-| Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 110 calls |
+| Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 48 calls in 18 files |
 
-Rows marked "not yet" are commitments, not claims. A rule that cannot be
-checked by a script does not belong in this table at all.
+No row is marked "not yet" any more. Every rule here is checked by a script or
+by the linter, and every check runs in CI — a rule nothing enforces is asserted
+nowhere. The correctness lint reached zero the way the other gates are required
+to: 883 findings were triaged individually, not baselined. Five rules that had
+been switched off globally (`no-control-regex`, `constructor-super`,
+`no-unused-expressions`, `no-irregular-whitespace`, `no-useless-escape`) are
+back on. Where a finding is a deliberate construction rather than a defect — a
+regex naming the control characters a sanitiser strips, a derived constructor
+that returns an object by design — the exemption is a directive at the site,
+31 of them, each with its own reason: 25 `oxlint-disable-next-line` and 5
+`oxlint-disable-line` for `no-control-regex`, and 1 `oxlint-disable-next-line`
+for `constructor-super`. No rule is globally `off`. The file-size ratchet sets
+that split: a directive on its own line grows four files already recorded at
+their ceiling, so in those the directive rides on the annotated line.
 
 ## 7. Changing this policy
 

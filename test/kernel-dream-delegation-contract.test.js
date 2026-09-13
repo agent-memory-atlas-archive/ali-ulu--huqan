@@ -29,7 +29,7 @@ test('KERNEL: dream is a one-line delegate', () => {
 test('KERNEL: dream delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /kernel\.js/);
   assert.doesNotMatch(delegateSource, /require\(["']\.\.\/kernel["']\)/);
-  assert.doesNotMatch(delegateSource, /this\._|this\.graph|this\.\_dreamCount/);
+  assert.doesNotMatch(delegateSource, /this\._|this\.graph|this\._dreamCount/);
   assert.match(delegateSource, /commitBackgroundEdge/);
   assert.match(delegateSource, /admission/);
 });

@@ -306,7 +306,11 @@ test('receipt-exporter: #543 traversal receiptId rejects on the PDF path too', a
 test('receipt-exporter: #543 unsafe receiptId shapes all fail closed', () => {
   const { resolveReceiptFileStem } = receiptExporter._test;
   const unsafe = [
-    '../package', '..', '.', 'a/b', 'a\b', '/abs', 'C:\win',
+    // `'a\b'` and `'C:\win'` were single-escaped, so the fixtures held a
+    // backspace and `C:win` -- the backslashes this list reads as were never
+    // there. Doubled so each entry is the Windows path shape it names; both
+    // are still rejected, because `SAFE_RECEIPT_ID` admits only [A-Za-z0-9._-].
+    '../package', '..', '.', 'a/b', 'a\\b', '/abs', 'C:\\win',
     'nul\u0000byte', 'has space', 'x'.repeat(129),
   ];
   for (const receiptId of unsafe) {

@@ -166,7 +166,7 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   // bilinmeyen iddia -> review: SHA-256 hash + ingest POST + scoped idempotency key
   assert.match(script, /crypto\.subtle\.digest\('SHA-256'/);
   assert.match(script, /json\('\/api\/ingest'/);
-  assert.match(script, /idempotencyKey:\`command-center:\$\{h\}\`/);
+  assert.match(script, /idempotencyKey:`command-center:\$\{h\}`/);
   // approval/review kuyruğu okunur ve karar ingest'e postanır
   // #1877: the queue is read from the manifest's v2 route, never the legacy one.
   assert.match(script, /json\('\/api\/v2\/approvals\?limit=50&workspaceId='\+encodeURIComponent\(state\.ws\|\|'default'\)/);

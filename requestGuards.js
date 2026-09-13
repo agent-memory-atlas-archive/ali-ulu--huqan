@@ -79,6 +79,7 @@ const DEFAULT_ALLOWED_PUBLIC_COMMANDS = Object.freeze(new Set([
 function sanitizeInput(raw, maxLength = DEFAULT_MAX_INPUT_LENGTH) {
   if (typeof raw !== 'string') return '';
   let s = raw.slice(0, maxLength);
+  // oxlint-disable-next-line no-control-regex -- deliberate: strips disallowed controls while keeping tab, LF and CR
   s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   return s.trim();
 }

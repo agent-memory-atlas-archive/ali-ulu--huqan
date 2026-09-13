@@ -61,6 +61,7 @@ function checkWebhookUrl(rawUrl, { onActions = false } = {}) {
   }
   // Checked before parsing: new URL() silently strips tabs, newlines and other
   // C0 characters, which would validate one string and send another.
+  // oxlint-disable-next-line no-control-regex -- deliberate: rejects control characters and spaces in the webhook URL
   if (/[\u0000-\u0020\u007f]/.test(rawUrl)) {
     return { ok: false, reason: 'PR_GUARDIAN_WEBHOOK_URL contains whitespace or control characters' };
   }

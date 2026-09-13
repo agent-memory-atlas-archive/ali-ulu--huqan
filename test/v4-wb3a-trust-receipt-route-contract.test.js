@@ -55,6 +55,7 @@ describe('V4-WB3A: workbench trust receipt route contract (pure, no server)', ()
       );
       assert.equal(result.ok, true);
       assert.equal(result.receiptId, 'r-1[FORGED] admin escalated');
+      // oxlint-disable-next-line no-control-regex -- deliberate: asserts the route emitted no control characters
       assert.equal(/[\x00-\x1F\x7F]/.test(result.receiptId), false);
     });
   });

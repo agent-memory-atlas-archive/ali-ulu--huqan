@@ -161,7 +161,7 @@ function probeRealServer(configurationValue) {
     child.once('exit', (code) => {
       try { require('node:fs').rmSync(memoryPath, { force: true }); } catch (_) {}
       if (code !== 0) return reject(new Error(stderr || `real server probe exited ${code}`));
-      const match = stdout.match(/\{\"statusCode\"[\s\S]*\}$/);
+      const match = stdout.match(/\{"statusCode"[\s\S]*\}$/);
       if (!match) return reject(new Error(`real server probe produced no result: ${stdout}`));
       resolve(JSON.parse(match[0]));
     });

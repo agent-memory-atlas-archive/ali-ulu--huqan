@@ -1,5 +1,5 @@
 const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const Graph = require('./graph');
 
