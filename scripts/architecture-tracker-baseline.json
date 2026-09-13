@@ -343,16 +343,9 @@
         "ISP:2"
       ]
     },
-    "lib/memory-store-sqlite-warmup.js": {
-      "band": "structural",
-      "lines": 127,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "lib/memory-store.js": {
       "band": "decompose",
-      "lines": 970,
+      "lines": 968,
       "signals": [
         "FANOUT:23"
       ]

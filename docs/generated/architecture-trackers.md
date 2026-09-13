@@ -10,7 +10,7 @@ Tracked in total: **90**
 | `graph.js` | 1242 | FANOUT:35 |
 | `kernel.js` | 1073 | ISP:1 DIP FANOUT:39 |
 | `server.js` | 1026 | FANOUT:52 |
-| `lib/memory-store.js` | 970 | FANOUT:23 |
+| `lib/memory-store.js` | 968 | FANOUT:23 |
 | `agent.js` | 955 | OCP:6 |
 | `workflow-agent.js` | 941 | OCP:6 |
 | `workflow-tools.js` | 880 | — |
@@ -99,7 +99,6 @@ Tracked in total: **90**
 | `lib/kernel-v2-native.js` | 152 | ISP:1 |
 | `lib/hypothesis-review.js` | 145 | ISP:1 |
 | `lib/cli-helpers.js` | 139 | OCP:12 |
-| `lib/memory-store-sqlite-warmup.js` | 127 | ISP:1 |
 | `lib/graph-json-persistence.js` | 125 | ISP:1 |
 | `lib/reason-sandbox.js` | 124 | ISP:2 |
 | `lib/mcp-approval-store.js` | 123 | DIP |
