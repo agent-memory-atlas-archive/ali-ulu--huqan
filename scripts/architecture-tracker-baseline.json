@@ -405,13 +405,6 @@
         "ISP:1"
       ]
     },
-    "lib/receipt/receipt-stamp.js": {
-      "band": "structural",
-      "lines": 118,
-      "signals": [
-        "ISP:2"
-      ]
-    },
     "lib/receipt/trusted-key-resolver.js": {
       "band": "recorded",
       "lines": 421,
