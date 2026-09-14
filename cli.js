@@ -10,7 +10,6 @@ const { createProcessFailureHandlers, failureCodeFor } = require('./lib/http/pro
 const { writeStructuredLog } = require('./lib/http/structured-log');
 const { cliHelpText } = require('./lib/cli-help');
 const { formatCliGateMessage } = require('./lib/cli-gate-message');
-const { formatPluginCapabilityStatus } = require('./lib/cli-plugin-status');
 const { runCliHypotheses } = require('./lib/cli-hypotheses');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { runQuickstartCommand } = require('./lib/quickstart-cli');
@@ -22,7 +21,6 @@ const {
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
-const { buildSystemStatus, formatSystemStatusText } = require('./lib/system-status-report');
 const { createBackup, runCliRestore, formatCliRestore, formatRestoreError } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
@@ -49,6 +47,7 @@ const {
   mapCliCommandToMcpTool,
   commandFailure,
 } = require('./lib/cli-helpers');
+const { runStatusCommand } = require('./lib/cli-status-command');
 
 // #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
 // CLI#execute builds, not the instance; lazy requires keep a block body so require-scan still sees them deferred.
@@ -467,14 +466,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
       createOperatorCapability: ({ tool, arguments: args }) => cli.createOperatorCapability(tool, args),
     });
   },
-  'durum': (cli, args, opts, command) => {
-    // The same report huqan.status returns, rendered. Sharing the builder
-    // is what keeps the two surfaces from answering differently.
-    const report = buildSystemStatus(cli.kernel, {
-      agentRuntime: isWorkflowRuntime(cli.agent) ? 'workflow' : null,
-    });
-    return formatSystemStatusText(report, formatPluginCapabilityStatus(cli.kernel?.plugins));
-  },
+  'durum': (cli) => runStatusCommand(cli),
   'rüya': (cli, args, opts, command) => {
     const hypotheses = cli.dream.dream();
     if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
