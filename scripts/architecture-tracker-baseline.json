@@ -252,13 +252,6 @@
       "lines": 412,
       "signals": []
     },
-    "lib/kernel-v2-type-negation.js": {
-      "band": "structural",
-      "lines": 91,
-      "signals": [
-        "ISP:5"
-      ]
-    },
     "lib/learn-use-case.js": {
       "band": "recorded",
       "lines": 437,
