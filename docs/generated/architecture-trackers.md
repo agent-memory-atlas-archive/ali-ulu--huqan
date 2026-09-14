@@ -19,7 +19,7 @@ Tracked in total: **75**
 | `cli.js` | 816 | OCP:40 FANOUT:27 |
 | `mcpServer.js` | 807 | OCP:23 FANOUT:34 |
 
-## Recorded debt, 401-800 lines (59)
+## Recorded debt, 401-800 lines (58)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -81,7 +81,6 @@ Tracked in total: **75**
 | `lib/kernel-read-use-cases.js` | 412 | — |
 | `lib/v5/runtime-writer.js` | 411 | — |
 | `lib/mcp-approval-decision-handler.js` | 408 | — |
-| `lib/sdk.js` | 403 | OCP:10 |
 
 ## At or under 400 lines, tracked for a signal (5)
 

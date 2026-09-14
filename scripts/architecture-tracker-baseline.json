@@ -323,13 +323,6 @@
       "lines": 831,
       "signals": []
     },
-    "lib/sdk.js": {
-      "band": "recorded",
-      "lines": 403,
-      "signals": [
-        "OCP:10"
-      ]
-    },
     "lib/storage/tool-approval-methods.js": {
       "band": "recorded",
       "lines": 424,
