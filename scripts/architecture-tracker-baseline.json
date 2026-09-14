@@ -308,13 +308,6 @@
         "FANOUT:23"
       ]
     },
-    "lib/mutation-journal.js": {
-      "band": "structural",
-      "lines": 264,
-      "signals": [
-        "ISP:4"
-      ]
-    },
     "lib/observability/api-contract.js": {
       "band": "recorded",
       "lines": 469,
@@ -338,9 +331,7 @@
     "lib/receipt/receipt-read-index.js": {
       "band": "recorded",
       "lines": 640,
-      "signals": [
-        "ISP:1"
-      ]
+      "signals": []
     },
     "lib/receipt/trusted-key-resolver.js": {
       "band": "recorded",
