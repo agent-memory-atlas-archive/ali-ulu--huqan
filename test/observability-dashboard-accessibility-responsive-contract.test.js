@@ -22,6 +22,8 @@ test('observability dashboard accessibility and responsive contract', async t =>
     for (const [, view] of navButtons) assert.match(navButtons.find(match => match[1] === view)[0], /aria-label="[^"]+"/);
     assert.match(dashboard, /<input id="search"[^>]*aria-label="Search receipts, claims, and sources"/);
     assert.match(dashboard, /<div class="avatar" aria-hidden="true">H<\/div>/);
+    assert.match(dashboard, /<i class="dot" id="sysdot" aria-hidden="true"><\/i>/);
+    assert.match(dashboard, /<input type="file" id="file"[^>]*aria-label="Choose file"/);
   });
 
   await t.test('provides visible keyboard focus and disabled-state affordances', () => {
