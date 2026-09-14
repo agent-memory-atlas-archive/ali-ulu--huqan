@@ -32,6 +32,23 @@ const MEMORY_LIMITS = {
   runs: 32,
   goals: 64,
 };
+// #2130: one handler per internal tool; a new tool is a row, not a case.
+const INTERNAL_TOOL_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
+  learn: (agent, step, state, opts) => agent.kernel.learn(step.input, opts.learnOpts || {}),
+  ask: (agent, step, state, opts) => agent.kernel.ask(step.input, opts.askOpts || {}),
+  verify: (agent, step, state, opts) => agent.kernel.verify(step.input, opts.verifyOpts || {}),
+  reason: (agent, step, state, opts) => agent.kernel.reason(stripQuestionMarks(step.input || state.goal), opts.reasonOpts || {}),
+  compare: (agent, step, state, opts) => {
+    const text = String(step.input || state.goal);
+    const parts = text.split('|').map(s => s.trim()).filter(Boolean);
+    if (parts.length >= 2) return agent.kernel.compare(parts[0], parts[1], opts.compareOpts || {});
+    return agent.kernel.compare(firstWords(text, 2), firstWords(text.split(/\s+/).slice(2).join(' '), 2), opts.compareOpts || {});
+  },
+  dream: (agent, step, state, opts) => (agent.dream ? agent.dream.dream(opts.dreamOpts || {}) : agent.kernel.dream(opts.dreamOpts || {})),
+}));
+function unsupportedToolResult(agent, step) {
+  return { ok: false, type: 'agent', data: null, evidence: [], error: { code: 'UNSUPPORTED_TOOL', message: `Unsupported tool: ${String(step.tool || 'unknown')}` }, meta: { blocked: true, allowedTools: [...ALLOWED_TOOLS] } };
+}
 class Agent {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
@@ -685,49 +702,8 @@ class Agent {
           },
         };
         } else {
-          switch (step.tool) {
-          case 'learn':
-            result = this.kernel.learn(step.input, opts.learnOpts || {});
-            break;
-          case 'ask':
-            result = this.kernel.ask(step.input, opts.askOpts || {});
-            break;
-          case 'verify':
-            result = this.kernel.verify(step.input, opts.verifyOpts || {});
-            break;
-          case 'reason':
-            result = this.kernel.reason(stripQuestionMarks(step.input || state.goal), opts.reasonOpts || {});
-            break;
-          case 'compare': {
-            const text = String(step.input || state.goal);
-            const parts = text.split('|').map(s => s.trim()).filter(Boolean);
-            if (parts.length >= 2) {
-              result = this.kernel.compare(parts[0], parts[1], opts.compareOpts || {});
-            } else {
-              result = this.kernel.compare(firstWords(text, 2), firstWords(text.split(/\s+/).slice(2).join(' '), 2), opts.compareOpts || {});
-            }
-            break;
-          }
-          case 'dream':
-            result = this.dream ? this.dream.dream(opts.dreamOpts || {}) : this.kernel.dream(opts.dreamOpts || {});
-            break;
-          default:
-            result = {
-              ok: false,
-              type: 'agent',
-              data: null,
-              evidence: [],
-              error: {
-                code: 'UNSUPPORTED_TOOL',
-                message: `Unsupported tool: ${String(step.tool || 'unknown')}`,
-              },
-              meta: {
-                blocked: true,
-                allowedTools: [...ALLOWED_TOOLS],
-              },
-            };
-            break;
-          }
+          const handler = Object.hasOwn(INTERNAL_TOOL_HANDLERS, step.tool) ? INTERNAL_TOOL_HANDLERS[step.tool] : unsupportedToolResult;
+          result = handler(this, step, state, opts);
         }
       }
 

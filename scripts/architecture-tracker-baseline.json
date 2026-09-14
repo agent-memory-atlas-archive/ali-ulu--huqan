@@ -3,10 +3,8 @@
   "entries": {
     "agent.js": {
       "band": "decompose",
-      "lines": 955,
-      "signals": [
-        "OCP:6"
-      ]
+      "lines": 931,
+      "signals": []
     },
     "agent.v3.js": {
       "band": "recorded",
