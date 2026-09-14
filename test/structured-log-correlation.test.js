@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const {
@@ -68,9 +69,10 @@ test('structured correlation logging contract', async t => {
   await t.test('wires the context and structured logger at production boundaries', () => {
     assert.match(serverSource, /createRequestCorrelation\(req, res\)/);
     assert.match(serverSource, /writeStructuredLog\(console, 'error', 'http\.unhandled_error'/);
-    assert.match(runtimeSource, /writeStructuredLog\(console, 'info', 'observability\.workflow_run_started'/);
-    assert.match(runtimeSource, /writeStructuredLog\(console, 'info', 'observability\.workflow_run_finished'/);
-    assert.match(runtimeSource, /writeStructuredLog\(console, 'error', 'observability\.workflow_run_failed'/);
-    assert.match(runtimeSource, /traceId: step\.traceId \|\| traceId/);
+    const instrumentationSource = fs.readFileSync(path.join(__dirname, '../lib/observability/workflow-agent-instrumentation.js'), 'utf8');
+    assert.match(instrumentationSource, /writeStructuredLog\(console, 'info', 'observability\.workflow_run_started'/);
+    assert.match(instrumentationSource, /writeStructuredLog\(console, 'info', 'observability\.workflow_run_finished'/);
+    assert.match(instrumentationSource, /writeStructuredLog\(console, 'error', 'observability\.workflow_run_failed'/);
+    assert.match(instrumentationSource, /traceId: step\.traceId \|\| traceId/);
   });
 });
