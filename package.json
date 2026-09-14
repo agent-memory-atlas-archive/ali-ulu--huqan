@@ -197,6 +197,7 @@
     "lib/observability/authorization.js",
     "lib/observability/client.js",
     "lib/observability/server-runtime.js",
+    "lib/observability/workflow-agent-instrumentation.js",
     "lib/http/runtime-status.js",
     "lib/approval-execution-evidence.js",
     "lib/approval-flow.js",
