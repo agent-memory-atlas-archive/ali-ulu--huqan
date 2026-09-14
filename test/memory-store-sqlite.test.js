@@ -936,4 +936,18 @@ describe('reopen() after restore replaces the backing file (#1864)', () => {
     assert.strictEqual(store.list({ workspaceId: 'ws1' }).memories[0].content, 'keep me');
     store.close();
   });
+
+  it('exposes the backend init/warmup pair as documented public methods (#2359)', () => {
+    const dbPath = getDbPath('reopen-public-backend');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    try {
+      assert.strictEqual(typeof store.initDB, 'function');
+      assert.strictEqual(typeof store.warmup, 'function');
+      assert.strictEqual(store.store({ content: 'via public backend', workspaceId: 'ws1' }).ok, true);
+      store.reopen();
+      assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, 1);
+    } finally {
+      store.close();
+    }
+  });
 });
