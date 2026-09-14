@@ -88,8 +88,8 @@ describe('KernelV2 verification stays inside the requested workspace (#734)', ()
     assert.deepStrictEqual(v2._collectTypeTargets('kedi', 'default'), ['hayvan']);
     assert.deepStrictEqual(v2._collectTypeTargets('kedi', 'w2'), ['bitki']);
 
-    const factsDefault = v2._collectFactTargets('kedi', 'default').map((f) => f.rawTarget);
-    const factsW2 = v2._collectFactTargets('kedi', 'w2').map((f) => f.rawTarget);
+    const factsDefault = v2.collectFactTargets('kedi', 'default').map((f) => f.rawTarget);
+    const factsW2 = v2.collectFactTargets('kedi', 'w2').map((f) => f.rawTarget);
     assert.deepStrictEqual(factsDefault, ['ucar']);
     assert.deepStrictEqual(factsW2, ['yuzer']);
 
@@ -103,7 +103,7 @@ describe('KernelV2 verification stays inside the requested workspace (#734)', ()
     edge(kernel.graph, 'kedi', 'ucar', 'yapabilir', 'default');
     edge(kernel.graph, 'kedi', 'bitki', 'tür', 'w2');
 
-    for (const builder of ['_buildDirectTypeEvidence', '_buildDirectFactEvidence', '_buildPredicateEvidence']) {
+    for (const builder of ['buildDirectTypeEvidence', 'buildDirectFactEvidence', '_buildPredicateEvidence']) {
       const items = v2[builder]('kedi', 'w2');
       const text = items.map((item) => item.text).join(' | ');
       assert.ok(!text.includes('hayvan'), `${builder} leaked a default-workspace edge: ${text}`);

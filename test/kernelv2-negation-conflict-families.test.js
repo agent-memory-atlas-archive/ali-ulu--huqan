@@ -73,7 +73,7 @@ test('a negated statement contradicts a known type edge (#1989)', () => {
 
 // The regression #2065 introduced, stated as a rule rather than as one
 // workspace assertion: the fact collector must not report type edges.
-test('_collectFactTargets reports fact edges only, never type edges', () => {
+test('collectFactTargets reports fact edges only, never type edges', () => {
   withKernel((kernel) => {
     kernel.graph.addNode('kedi', 'kedi');
     kernel.graph.addNode('hayvan', 'hayvan');
@@ -84,12 +84,27 @@ test('_collectFactTargets reports fact edges only, never type edges', () => {
     const v2 = new KernelV2({ kernel });
 
     assert.deepStrictEqual(
-      v2._collectFactTargets('kedi', 'default').map((f) => f.rawTarget),
+      v2.collectFactTargets('kedi', 'default').map((f) => f.rawTarget),
       ['ucar'],
     );
     assert.deepStrictEqual(v2._collectTypeTargets('kedi', 'default'), ['hayvan']);
 
-    const factEvidence = v2._buildDirectFactEvidence('kedi', 'default').map((e) => e.text).join(' | ');
+    const factEvidence = v2.buildDirectFactEvidence('kedi', 'default').map((e) => e.text).join(' | ');
     assert.ok(!factEvidence.includes('hayvan'), `fact evidence leaked a type edge: ${factEvidence}`);
+  });
+});
+
+test('the negation module reaches v2 only through documented public methods (#2357)', () => {
+  withKernel((kernel) => {
+    const v2 = new KernelV2({ kernel });
+    for (const name of [
+      'normalizePredicateToken',
+      'isTypeRelation',
+      'collectFactTargets',
+      'buildDirectFactEvidence',
+      'buildDirectTypeEvidence',
+    ]) {
+      assert.strictEqual(typeof v2[name], 'function', `v2.${name} must be a public method`);
+    }
   });
 });
