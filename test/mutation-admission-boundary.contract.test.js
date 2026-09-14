@@ -90,7 +90,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'agent.v3.js': { why: 'audit family', sinks: { appendAuditEvent: 2 } },
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'graph.js': { why: 'graph optimize and consolidate maintenance audits; DELETE evidence is emitted by the Graph persistence owner until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 2 } },
-  'lib/external-action-receipt.js': { why: 'audit family; the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
+  'lib/external-action-receipt-writer-factory.js': { why: 'audit family (moved from lib/external-action-receipt.js with the writer factory, #2192); the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -389,8 +389,8 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // (lib/cli-hypotheses.js) and the human review verdict
   // (lib/hypothesis-review.js) -- both delegating to kernel.addCandidateClaim.
   // PR #1765: the external action guard adds one ledgered audit append
-  // (lib/external-action-receipt.js projects receipts into the graph
-  // append-only audit_log beside its crash-safe JSONL trail).
+  // (lib/external-action-receipt-writer-factory.js, formerly lib/external-action-receipt.js,
+  // projects receipts into the graph append-only audit_log beside its crash-safe JSONL trail).
   assert.equal(unrouted, 25, 'unrouted sink calls');
   assert.equal(routed, 29, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface)');
   assert.equal(unrouted + routed, 54, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, and the external-action receipt projection');
