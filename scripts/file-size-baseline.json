@@ -64,7 +64,6 @@
     "lib/receipt/trusted-key-resolver.js": 421,
     "lib/risk-classify.js": 740,
     "lib/sandbox-isolation.js": 831,
-    "lib/sdk.js": 403,
     "lib/storage/tool-approval-methods.js": 424,
     "lib/tool-call-gate.js": 731,
     "lib/v5/runtime-writer.js": 411,
@@ -301,10 +300,6 @@
     "lib/sandbox-isolation.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2026-10-31"
-    },
-    "lib/sdk.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
     },
     "lib/storage/tool-approval-methods.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
