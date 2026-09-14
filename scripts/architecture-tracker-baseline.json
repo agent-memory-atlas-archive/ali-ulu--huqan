@@ -307,10 +307,8 @@
     },
     "lib/risk-classify.js": {
       "band": "recorded",
-      "lines": 740,
-      "signals": [
-        "OCP:13"
-      ]
+      "lines": 739,
+      "signals": []
     },
     "lib/sandbox-isolation.js": {
       "band": "decompose",
