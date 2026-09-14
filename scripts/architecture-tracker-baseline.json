@@ -84,10 +84,8 @@
     },
     "lib/atp-conformance.js": {
       "band": "recorded",
-      "lines": 510,
-      "signals": [
-        "OCP:9"
-      ]
+      "lines": 504,
+      "signals": []
     },
     "lib/automation-safety-gate/automation-operation-classifier.js": {
       "band": "recorded",

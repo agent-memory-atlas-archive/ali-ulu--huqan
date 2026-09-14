@@ -59,9 +59,9 @@ Tracked in total: **74**
 | `sandboxRunner.js` | 530 | OCP:8 |
 | `lib/github-connector.js` | 524 | ISP:1 OCP:6 |
 | `lib/command-exec-gate.js` | 515 | — |
-| `lib/atp-conformance.js` | 510 | OCP:9 |
 | `lib/external-client-replay-store.js` | 510 | — |
 | `lib/memory-admission-gate.js` | 509 | — |
+| `lib/atp-conformance.js` | 504 | — |
 | `lib/a2a/exchange-route.js` | 493 | — |
 | `causalSimulator.js` | 478 | — |
 | `lib/http/workflow-data-routes.js` | 477 | OCP:14 |
