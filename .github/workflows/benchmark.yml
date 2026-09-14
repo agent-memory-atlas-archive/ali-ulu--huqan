@@ -339,10 +339,7 @@ jobs:
   runtime-test:
     name: npm test (runtime/test selected, ${{ matrix.os }}, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
     needs: [classify, test-impact-plan]
-    if: >-
-      needs['test-impact-plan'].outputs.run_tests == 'true' &&
-      (github.event_name != 'pull_request' ||
-      (matrix.os != 'macos-latest' && matrix.node-version == 22))
+    if: needs['test-impact-plan'].outputs.run_tests == 'true'
     runs-on: ${{ matrix.os }}
     # A shard finishes in two to four minutes. Without a cap it inherits the
     # six-hour default, and a shard that hangs — the browser smokes in shard 2
@@ -354,8 +351,8 @@ jobs:
       matrix:
         # PRs exercise the supported Node 22 package on Linux and Windows.
         # Scheduled/manual runs also cover macOS and the current Node 24 line.
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [22, 24]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[22]' || '[22, 24]') }}
         shard: [1, 2, 3, 4, 5]
     defaults:
       run:

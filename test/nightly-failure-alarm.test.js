@@ -259,11 +259,11 @@ test('every shard uploads its failure sidecar even when the shard fails', () => 
 test('workflow runs the PR and nightly platform matrix with explicit Windows shell', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml'), 'utf8');
   const job = workflow.slice(workflow.indexOf('  runtime-test:'));
-  assert.match(job, /os: \[ubuntu-latest, windows-latest, macos-latest\]/);
-  assert.match(job, /node-version: \[22, 24\]/);
-  assert.match(job, /github\.event_name != 'pull_request'/);
-  assert.match(job, /matrix\.os != 'macos-latest'/);
-  assert.match(job, /matrix\.node-version == 22/);
+  assert.match(job, /os: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
+  assert.match(job, /\["ubuntu-latest", "windows-latest"\]/);
+  assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
+  assert.match(job, /node-version: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
+  assert.match(job, /\[22, 24\]/);
   assert.match(job, /shell: bash/);
   assert.match(job, /TEST_RESULT: \$\{\{ needs\['runtime-test'\]\.result \}\}/);
   assert.match(job, /test-timings-\$\{\{ matrix\.os \}\}-node-\$\{\{ matrix\.node-version \}\}-shard-\$\{\{ matrix\.shard \}\}-attempt-\$\{\{ github\.run_attempt \}\}/);
