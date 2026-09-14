@@ -128,7 +128,7 @@ const CLASSIFIED = Object.freeze({
   'lib/github-app-streaming-trust-store.js': Object.freeze({ role: 'persistence', why: 'the streaming trust store, at a configured path and only when the streaming-trust flag is enabled' }),
   'lib/hypothesis-thresholds.js': Object.freeze({ role: 'persistence', why: 'persists learned hypothesis thresholds under the state directory; product-owned data, no external input in the path' }),
   'lib/huqan-package-format.js': Object.freeze({ role: 'persistence', why: 'writes an exported package to the caller-named output path' }),
-  'agent.js': Object.freeze({ role: 'persistence', why: 'writes agent checkpoints and run state so a run can resume; the path is the kernel persistence descriptor, not a request field' }),
+  'lib/agent-memory-runtime.js': Object.freeze({ role: 'persistence', why: 'writes agent memory (goals, runs, tool stats) through a temp file and rename so a run can resume, and moves a corrupt memory file aside; the path is the Agent constructor memoryPath or derived from the kernel graph memoryPath, never a request field' }),
   'lib/store-creation-guard.js': Object.freeze({ role: 'persistence', why: 'the registry of store paths this machine keeps, under the resolved state root; the recorded path is a store path the runtime already resolved, never a request field, and every write failure is swallowed so the registry can never refuse an open' }),
   'lib/mcp-capability-nonce-store.js': Object.freeze({
     role: 'persistence',

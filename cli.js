@@ -21,7 +21,6 @@ const {
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
-const { createBackup, runCliRestore, formatCliRestore, formatRestoreError } = require('./backupRestore');
 const { resolvePersistencePaths } = require('./persistencePaths');
 const { evaluateMcpGate } = require('./lib/mcp-gate-adapter');
 const {
@@ -47,6 +46,8 @@ const {
   mapCliCommandToMcpTool,
   commandFailure,
 } = require('./lib/cli-helpers');
+const { runCompanyIngest } = require('./lib/cli-company-ingest');
+const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
 const { runStatusCommand } = require('./lib/cli-status-command');
 
 // #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
@@ -192,155 +193,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
       return commandFailure(`Could not read file: ${error.message}`, opts);
     }
   },
-  'company-ingest': (cli, args, opts, command) => {
-    const payload = args && typeof args === 'object' ? args : {};
-    const source = String(payload.source || '').toLowerCase();
-    cli.ensureCompanyCapabilities();
-
-    if (source === 'manuel' || source === 'manual') {
-      const run = cli.kernel.runCapability('companyBrain', {
-        action: 'manual',
-        sourceType: 'manual',
-        text: payload.text,
-        author: payload.author,
-        date: payload.date,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`Manual ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Manual ingest: ok (${result.added || 0})`;
-      });
-    }
-
-    if (source === 'karar' || source === 'decision') {
-      const run = cli.kernel.runCapability('companyBrain', {
-        action: 'decision',
-        sourceType: 'decision',
-        title: payload.title,
-        rationale: payload.rationale,
-        decidedBy: payload.author,
-        date: payload.date,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`Decision ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Decision ingest: ok (${result.decisionId || '-'})`;
-      });
-    }
-
-    if (source === 'github' || source === 'repo') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'github',
-        repoUrl: payload.repoUrl,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`Repo ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Repo ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    if (source === 'markdown' || source === 'md') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'markdown',
-        path: payload.targetPath,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`Markdown ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Markdown ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    if (source === 'json') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'json',
-        path: payload.targetPath,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`JSON ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Json ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    if (source === 'yaml' || source === 'yml') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'yaml',
-        path: payload.targetPath,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`YAML ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Yaml ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    if (source === 'git-log' || source === 'gitlog') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'git-log',
-        path: payload.targetPath,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`Git-log ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Git-log ingest: ok (commits=${result.commits || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    if (source === 'pdf') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'pdf',
-        path: payload.targetPath,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`PDF ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Pdf ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    if (source === 'http' || source === 'url') {
-      const run = cli.kernel.runCapability('repoMemory', {
-        action: 'ingest',
-        sourceType: 'http',
-        url: payload.repoUrl,
-        enforceConnectorFirewall: true,
-      });
-      return Promise.resolve(run).then(result => {
-        if (!result || result.ok === false) {
-          return commandFailure(`HTTP ingest error: ${result?.error || 'unknown error'}`, opts);
-        }
-        return `Http ingest: ok (urls=${result.urls || 0}, added=${result.added || 0})`;
-      });
-    }
-
-    return commandFailure(
-      'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown|json|yaml|git-log|pdf|http ...',
-      opts,
-      2
-    );
-  },
+  'company-ingest': (cli, args, opts) => runCompanyIngest(cli, args, opts),
   'company-query': (cli, args, opts, command) => {
     cli.ensureCompanyCapabilities();
     const run = cli.kernel.runCapability('companyBrain', {
@@ -365,10 +218,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
       return `Ingest status -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} gitlog:${dist['git-log'] || 0} pdf:${dist.pdf || 0} http:${dist.http || 0} manual:${dist.manual || 0}`;
     });
   },
-  'backup': (cli, args, opts, command) => {
-    const result = createBackup(cli.backupOptions());
-    return `Backup complete: ${result.backupDir} (${result.copied.length} files)${cli.commitCliMutation('backup')}`;
-  },
+  'backup': (cli) => runBackupCommand(cli),
   'kaydet': (cli, args, opts, command) => {
     cli.kernel.persist();
     return `Memory saved.${cli.commitCliMutation('kaydet')}`;
@@ -426,27 +276,7 @@ const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
   'coder': (cli, args, opts, command) => {
     return require('./lib/cli-coder').runCliCoder(args, opts);
   },
-  'restore': (cli, args, opts, command) => {
-    // Windows EPERM guard (#1848): memory.db is open, so close every handle before restore replaces it.
-    const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
-    const storage = cli.agent?.storage;
-    const storageOpen = storageWasOpen(storage);
-    closeRestoreHandles({ kernel: cli.kernel, storage });
-    let result;
-    try {
-      result = runCliRestore(args, cli.backupOptions({ backupDir: args?.backupDir || args || undefined }));
-    } catch (error) {
-      throw Object.assign(new Error(formatRestoreError(error)), { code: error.code, receipt: error.receipt });
-    } finally {
-      // Only reopen handles we actually closed: agent storage may already be
-      // closed (tests, standalone reads) or point at a file restore replaced.
-      // Reopening one that was closed up front would try to open whatever it
-      // resolved to and can throw SQLITE_NOTADB for a non-database path.
-      reopenRestoreHandles({ kernel: cli.kernel, storage, storageOpen });
-    }
-    if (!result.dryRun) { cli.kernel.reload(); cli.commitCliMutation('restore'); }
-    return formatCliRestore(result, opts.json);
-  },
+  'restore': (cli, args, opts) => runRestoreCommand(cli, args, opts),
   'düşün': (cli, args, opts, command) => {
     if (args === 'dur') {
       cli.kernel.stopAutoThink();

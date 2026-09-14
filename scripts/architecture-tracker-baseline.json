@@ -1,11 +1,6 @@
 {
   "schemaVersion": 2,
   "entries": {
-    "agent.js": {
-      "band": "recorded",
-      "lines": 726,
-      "signals": []
-    },
     "agent.v3.js": {
       "band": "recorded",
       "lines": 778,
@@ -24,8 +19,8 @@
       "signals": []
     },
     "cli.js": {
-      "band": "decompose",
-      "lines": 807,
+      "band": "recorded",
+      "lines": 637,
       "signals": [
         "FANOUT:26"
       ]
