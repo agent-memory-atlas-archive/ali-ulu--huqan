@@ -50,6 +50,468 @@ const {
   commandFailure,
 } = require('./lib/cli-helpers');
 
+// #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
+// CLI#execute builds, not the instance; lazy requires keep a block body so require-scan still sees them deferred.
+const canonicalMutationUnavailable = (cli, args, opts, command) => cli.formatCliGateMessage(command, { decision: 'block', reason: 'cli_canonical_mutation_unavailable' });
+
+const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
+  'öğret': (cli, args, opts, command) => {
+    cli.kernel.learn(args, { sourceType: 'cli', sourceRef: 'cli:öğret', actor: 'cli-user' });
+    const subject = String(args || '').toLowerCase().split(/\s+/)[0];
+    return `OK "${subject}" öğrendim.`;
+  },
+  'verify': (cli, args, opts, command) => {
+    const result = cli.kernel.verify(args);
+    const data = result.data || {};
+    const evidence = Array.isArray(result.evidence) ? result.evidence : [];
+    let out = `Verify: ${data.status || 'unknown'} (confidence: ${typeof data.confidence === 'number' ? data.confidence.toFixed(2) : 'n/a'})`;
+    if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\nEvidence: ${evidence[0].text}`;
+    return out;
+  },
+  'sor': (cli, args, opts, command) => {
+    const result = cli.kernel.ask(args);
+    const answer = result.data.answer;
+    return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
+  },
+  'neden': (cli, args, opts, command) => {
+    const result = cli.kernel.reason(args);
+    const answer = result.data.answer;
+    return answer === 'Bilmiyorum' ? `X ${answer}` : `Neden: ${answer}`;
+  },
+  'karşılaştır': (cli, args, opts, command) => {
+    // Defaults, the way _evaluateCliGate()'s 'huqan.compare' branch already
+    // writes it. normalizeCompareArgs() returns the text unchanged when it
+    // finds neither '|' nor ' vs ', so a single-term `compare: elma` reached
+    // `right.trim()` on undefined and threw a raw stack trace at the user
+    // (#1029).
+    const [left = '', right = ''] = String(args || '').split('|');
+    if (!left.trim() || !right.trim()) {
+      return commandFailure('Kullanim: compare: <a>|<b>', opts);
+    }
+    const result = cli.kernel.compare(left.trim(), right.trim());
+    const answer = result.data.answer;
+    return answer === 'Bilmiyorum' ? `X ${answer}` : `Karsilastirma: ${answer}`;
+  },
+  'mri': (cli, args, opts, command) => {
+    cli.ensureProductCapabilities();
+    const run = cli.kernel.runCapability('ideaMri', { text: String(args || '').trim() });
+    return Promise.resolve(run).then(result => {
+      if (!result || result.ok === false) {
+        return commandFailure(`MRI error: ${result?.error || 'unknown error'}`, opts);
+      }
+      const data = result.data || {};
+      const claim = data.mainClaim || String(args || '').trim();
+      const risks = Array.isArray(data.risks)
+        ? data.risks.slice(0, 2).map(item => item?.text).filter(Boolean).join(' | ')
+        : '';
+      const gaps = Array.isArray(data.missingEvidence)
+        ? data.missingEvidence.slice(0, 2).map(item => item?.text).filter(Boolean).join(' | ')
+        : '';
+      return `MRI: ${claim}\nRiskler: ${risks || 'yok'}\nEksik kanit: ${gaps || 'yok'}`;
+    });
+  },
+  'tartis': (cli, args, opts, command) => {
+    cli.ensureProductCapabilities();
+    const run = cli.kernel.runCapability('devilAdvocate', { text: String(args || '').trim() });
+    return Promise.resolve(run).then(result => {
+      if (!result || result.ok === false) {
+        return commandFailure(`Debate error: ${result?.error || 'unknown error'}`, opts);
+      }
+      const data = result.data || {};
+      return `Devil's advocate (${data.mode || 'unknown'}): ${data.counterArgument || 'no output'}`;
+    });
+  },
+  'celiski': (cli, args, opts, command) => {
+    cli.ensureProductCapabilities();
+    const run = cli.kernel.runCapability('contradictionAlert', { text: String(args || '').trim() });
+    return Promise.resolve(run).then(result => {
+      if (!result || result.ok === false) {
+        return commandFailure(`Contradiction error: ${result?.error || 'unknown error'}`, opts);
+      }
+      const data = result.data || {};
+      const count = Array.isArray(data.conflictingThoughts) ? data.conflictingThoughts.length : 0;
+      return `Contradiction analysis: ${count} finding(s)${data.conflictType ? ` (${data.conflictType})` : ''}`;
+    });
+  },
+  'llm-sor': (cli, args, opts, command) => {
+    const axiomResult = cli.kernel.ask(args);
+    const verifyResult = cli.kernel.verify(args);
+    const verify = verifyResult.data || {};
+    // The verify branch above guards these with `typeof === 'number'`; this
+    // one did not, so a non-numeric confidence or risk score crashed the
+    // same way (#1029).
+    const confidenceText = typeof verify.confidence === 'number' ? verify.confidence.toFixed(2) : 'n/a';
+    let out = `AXIOM dogrulamasi: ${verify.status || 'unknown'} (guven: ${confidenceText})`;
+    if (axiomResult.data.answer !== 'Bilmiyorum') out += `\nAXIOM: ${axiomResult.data.answer}`;
+    const evidence = Array.isArray(verifyResult.evidence) ? verifyResult.evidence : [];
+    if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\nKanit: ${evidence[0].text}`;
+    if (verify.risk && verify.risk.manipulation) {
+      const labels = Array.isArray(verify.risk.labels) && verify.risk.labels.length > 0 ? verify.risk.labels.join(', ') : 'manipulation';
+      const scoreText = typeof verify.risk.score === 'number' ? verify.risk.score.toFixed(2) : 'n/a';
+      out += `\nRisk: ${labels} (skor: ${scoreText})`;
+    }
+    out += `\nLLM yaniti icin: ollama run ${shellQuote(cli.llm.model)} ${shellQuote(args)}`;
+    return out;
+  },
+  'plan': (cli, args, opts, command) => {
+    const result = cli.agent.plan(args);
+    const plan = unwrapAgentPayload(result);
+    if (opts.json) return result;
+    const steps = (plan.steps || []).map((step, index) => `  ${index + 1}. ${step.action} -> ${step.tool} | ${step.rationale}`).join('\n');
+    const nextAction = plan.nextAction ? `${plan.nextAction.action} -> ${plan.nextAction.tool}` : 'none';
+    const recommendations = Array.isArray(plan.recommendations?.items) ? plan.recommendations.items : [];
+    const runtimeLine = isWorkflowRuntime(cli.agent) ? 'Runtime: workflow' : 'Runtime: legacy';
+    return [
+      `Ajan planı: ${plan.objective} (${plan.status})`,
+      `Hedef: ${plan.goal}`,
+      runtimeLine,
+      `Seçilen araçlar: ${(plan.selectedTools || []).join(', ') || 'yok'}`,
+      `Next step: ${nextAction}`,
+      `Recommendations: ${recommendations.length > 0 ? recommendations.join(' | ') : 'none'}`,
+    `Steps:\n${steps || '  -'}`,
+      `Güven: ${plan.confidence.toFixed(2)}`,
+    ].join('\n');
+  },
+  'ajan': (cli, args, opts, command) => {
+    const result = cli.agent.run(args);
+    if (opts.json) return result;
+    return result && typeof result.then === 'function'
+      ? result.then(resolved => formatAgentRunResult(cli.agent, resolved))
+      : formatAgentRunResult(cli.agent, result);
+  },
+  'yükle': (cli, args, opts, command) => {
+    try {
+      const filePath = resolveCliReadPath(args);
+      const text = fs.readFileSync(filePath, 'utf8');
+      const count = cli.kernel.learnDocument(text, {
+        sourceType: 'cli',
+        sourceRef: `cli:yükle:${args}`,
+        actor: 'cli-user',
+      });
+      return `Learned ${count} fact(s) from "${args}".`;
+    } catch (error) {
+      return commandFailure(`Could not read file: ${error.message}`, opts);
+    }
+  },
+  'company-ingest': (cli, args, opts, command) => {
+    const payload = args && typeof args === 'object' ? args : {};
+    const source = String(payload.source || '').toLowerCase();
+    cli.ensureCompanyCapabilities();
+
+    if (source === 'manuel' || source === 'manual') {
+      const run = cli.kernel.runCapability('companyBrain', {
+        action: 'manual',
+        sourceType: 'manual',
+        text: payload.text,
+        author: payload.author,
+        date: payload.date,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`Manual ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Manual ingest: ok (${result.added || 0})`;
+      });
+    }
+
+    if (source === 'karar' || source === 'decision') {
+      const run = cli.kernel.runCapability('companyBrain', {
+        action: 'decision',
+        sourceType: 'decision',
+        title: payload.title,
+        rationale: payload.rationale,
+        decidedBy: payload.author,
+        date: payload.date,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`Decision ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Decision ingest: ok (${result.decisionId || '-'})`;
+      });
+    }
+
+    if (source === 'github' || source === 'repo') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'github',
+        repoUrl: payload.repoUrl,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`Repo ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Repo ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    if (source === 'markdown' || source === 'md') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'markdown',
+        path: payload.targetPath,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`Markdown ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Markdown ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    if (source === 'json') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'json',
+        path: payload.targetPath,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`JSON ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Json ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    if (source === 'yaml' || source === 'yml') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'yaml',
+        path: payload.targetPath,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`YAML ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Yaml ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    if (source === 'git-log' || source === 'gitlog') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'git-log',
+        path: payload.targetPath,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`Git-log ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Git-log ingest: ok (commits=${result.commits || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    if (source === 'pdf') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'pdf',
+        path: payload.targetPath,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`PDF ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Pdf ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    if (source === 'http' || source === 'url') {
+      const run = cli.kernel.runCapability('repoMemory', {
+        action: 'ingest',
+        sourceType: 'http',
+        url: payload.repoUrl,
+        enforceConnectorFirewall: true,
+      });
+      return Promise.resolve(run).then(result => {
+        if (!result || result.ok === false) {
+          return commandFailure(`HTTP ingest error: ${result?.error || 'unknown error'}`, opts);
+        }
+        return `Http ingest: ok (urls=${result.urls || 0}, added=${result.added || 0})`;
+      });
+    }
+
+    return commandFailure(
+      'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown|json|yaml|git-log|pdf|http ...',
+      opts,
+      2
+    );
+  },
+  'company-query': (cli, args, opts, command) => {
+    cli.ensureCompanyCapabilities();
+    const run = cli.kernel.runCapability('companyBrain', {
+      action: 'query',
+      question: String(args || '').trim(),
+    });
+    return Promise.resolve(run).then(result => {
+      if (!result || result.ok === false) {
+        return commandFailure(`Query error: ${result?.error || 'unknown error'}`, opts);
+      }
+      return `Company Brain: ${result.answer}\nKaynak: ${result.source}\nRefs: ${(result.sourceRefs || []).join(', ') || 'yok'}`;
+    });
+  },
+  'ingest-status': (cli, args, opts, command) => {
+    cli.ensureCompanyCapabilities();
+    const run = cli.kernel.runCapability('ingestStatus', {});
+    return Promise.resolve(run).then(result => {
+      if (!result || result.ok === false) {
+        return commandFailure(`Ingest status error: ${result?.error || 'unknown error'}`, opts);
+      }
+      const dist = result.distribution || {};
+      return `Ingest status -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} gitlog:${dist['git-log'] || 0} pdf:${dist.pdf || 0} http:${dist.http || 0} manual:${dist.manual || 0}`;
+    });
+  },
+  'backup': (cli, args, opts, command) => {
+    const result = createBackup(cli.backupOptions());
+    return `Backup complete: ${result.backupDir} (${result.copied.length} files)${cli.commitCliMutation('backup')}`;
+  },
+  'kaydet': (cli, args, opts, command) => {
+    cli.kernel.persist();
+    return `Memory saved.${cli.commitCliMutation('kaydet')}`;
+  },
+  'onaylar': (cli, args, opts, command) => {
+    const approvalArguments = { limit: 50, workspaceId: args?.workspaceId || 'default' };
+    const result = callMcpTool(
+      cli.kernel,
+      { name: 'huqan.approvals', operatorCapability: cli.createOperatorCapability('huqan.approvals', approvalArguments), arguments: approvalArguments },
+      cli.approvalRuntime()
+    );
+    if (!result || result.ok === false) {
+      return commandFailure(`Approval list error: ${result?.error?.message || 'unknown error'}`, opts);
+    }
+    return formatCliApprovalList(result, args, opts.json);
+  },
+  'onayla': (cli, args, opts, command) => {
+    const approval = args && typeof args === 'object' ? args : parseApprovalDecisionArgs(args);
+    if (!approval.approvalId || approval.invalidDecision) {
+      return commandFailure(
+        'Usage: onayla <approvalId> [approved|rejected]',
+        opts,
+        2
+      );
+    }
+    const approvalArguments = { approvalId: approval.approvalId, decision: approval.decision, workspaceId: approval.workspaceId || 'default' };
+    return Promise.resolve(callMcpTool(cli.kernel, {
+      name: 'huqan.approve',
+      operatorCapability: cli.createOperatorCapability('huqan.approve', approvalArguments),
+      arguments: approvalArguments,
+    }, cli.approvalRuntime())).then(result => {
+      if (!result || result.ok === false) {
+        const error = result?.error;
+        const message = `Approval error: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'unknown error'}`;
+        if (opts.throwOnError === true && error?.code) {
+          const failure = new Error(message);
+          failure.code = error.code;
+          const boundedMeta = {};
+          if (result?.meta?.identity && typeof result.meta.identity === 'object') boundedMeta.identity = result.meta.identity;
+          if (result?.meta?.oversight && typeof result.meta.oversight === 'object') boundedMeta.oversight = result.meta.oversight;
+          if (Object.keys(boundedMeta).length > 0) failure.meta = boundedMeta;
+          throw failure;
+        }
+        return commandFailure(message, opts);
+      }
+      return formatCliApprovalDecision(result, approval.approvalId, opts.json);
+    });
+  },
+  'audit': (cli, args, opts, command) => {
+    return require('./lib/cli-audit').runCliAudit(cli.kernel, args, opts, { getApprovalStore: () => cli.approvalRuntime().approvalStore });
+  },
+  'receipt': (cli, args, opts, command) => {
+    return require('./lib/cli-trust-receipt').runCliTrustReceipt(cli.kernel, args, opts);
+  },
+  'coder': (cli, args, opts, command) => {
+    return require('./lib/cli-coder').runCliCoder(args, opts);
+  },
+  'restore': (cli, args, opts, command) => {
+    // Windows EPERM guard (#1848): memory.db is open, so close every handle before restore replaces it.
+    const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
+    const storage = cli.agent?.storage;
+    const storageOpen = storageWasOpen(storage);
+    closeRestoreHandles({ kernel: cli.kernel, storage });
+    let result;
+    try {
+      result = runCliRestore(args, cli.backupOptions({ backupDir: args?.backupDir || args || undefined }));
+    } catch (error) {
+      throw Object.assign(new Error(formatRestoreError(error)), { code: error.code, receipt: error.receipt });
+    } finally {
+      // Only reopen handles we actually closed: agent storage may already be
+      // closed (tests, standalone reads) or point at a file restore replaced.
+      // Reopening one that was closed up front would try to open whatever it
+      // resolved to and can throw SQLITE_NOTADB for a non-database path.
+      reopenRestoreHandles({ kernel: cli.kernel, storage, storageOpen });
+    }
+    if (!result.dryRun) { cli.kernel.reload(); cli.commitCliMutation('restore'); }
+    return formatCliRestore(result, opts.json);
+  },
+  'düşün': (cli, args, opts, command) => {
+    if (args === 'dur') {
+      cli.kernel.stopAutoThink();
+      return 'Dusunmeyi durdurdum.';
+    }
+    return cli.formatCliGateMessage(command, {
+      decision: 'block',
+      reason: 'cli_automation_unavailable',
+    });
+  },
+  'optimize': canonicalMutationUnavailable, 'konsolide': canonicalMutationUnavailable, 'evolve': canonicalMutationUnavailable,
+  'quickstart': (cli, args, opts, command) => {
+    return runQuickstartCommand({
+      callTool: callMcpTool,
+      createApprovalStore: createApprovalStoreFromKernel,
+      operatorToken: cli.mcpOperatorToken,
+      createOperatorCapability: ({ tool, arguments: args }) => cli.createOperatorCapability(tool, args),
+    });
+  },
+  'durum': (cli, args, opts, command) => {
+    // The same report huqan.status returns, rendered. Sharing the builder
+    // is what keeps the two surfaces from answering differently.
+    const report = buildSystemStatus(cli.kernel, {
+      agentRuntime: isWorkflowRuntime(cli.agent) ? 'workflow' : null,
+    });
+    return formatSystemStatusText(report, formatPluginCapabilityStatus(cli.kernel?.plugins));
+  },
+  'rüya': (cli, args, opts, command) => {
+    const hypotheses = cli.dream.dream();
+    if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
+    const lines = hypotheses.map(item => `  ${item.from} -> ${item.to} (${item.type}, guven: ${item.confidence.toFixed(2)})`);
+    return `${hypotheses.length} hipotez:\n${lines.join('\n')}`;
+  },
+  'hypotheses': (cli, args, opts, command) => {
+    const argsObject = args && typeof args === 'object' ? args : {};
+    const applies = argsObject.tuning === true && argsObject.apply === true;
+    const writes = argsObject.propose === true || argsObject.review === true;
+    return runCliHypotheses(cli.kernel, argsObject, {
+      json: opts.json === true,
+      commitMutation: applies
+        ? () => cli.commitCliMutation('hypotheses-tuning-apply', CLI_MUTATION_GATE['hypotheses-tuning-apply'])
+        : writes
+          ? () => cli.commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
+          : null,
+    });
+  },
+  'selam': (cli, args, opts, command) => 'Hello! You can teach me something or ask me a question.',
+  'yardım': (cli, args, opts, command) => cliHelpText(),
+  'anlamadım': (cli, args, opts, command) => 'I did not understand. Write a longer sentence, or type "yardım" for help.',
+}));
+
+// #2136: the gate arguments each mapped MCP tool is evaluated with.
+const CLI_GATE_ARGS = Object.freeze(Object.assign(Object.create(null), {
+  'huqan.learn': (args) => ({ text: typeof args === 'string' ? args : JSON.stringify(args || {}) }),
+  'huqan.agent': (args) => ({ goal: typeof args === 'string' ? args : JSON.stringify(args || {}) }),
+  'huqan.ask': (args) => ({ question: String(args || '') }),
+  'huqan.verify': (args) => ({ statement: String(args || '') }),
+  'huqan.reason': (args) => ({ subject: String(args || '') }),
+  'huqan.compare': (args) => {
+    const [left = '', right = ''] = String(args || '').split('|');
+    return { left: left.trim(), right: right.trim() };
+  },
+}));
+
 class CLI {
   /**
    * @param {object} [opts]
@@ -163,452 +625,13 @@ class CLI {
       }
       return this._formatCliGateMessage(command, gateResult);
     }
-    switch (command) {
-      case 'öğret': {
-        this.kernel.learn(args, { sourceType: 'cli', sourceRef: 'cli:öğret', actor: 'cli-user' });
-        const subject = String(args || '').toLowerCase().split(/\s+/)[0];
-        return `OK "${subject}" öğrendim.`;
-      }
-      case 'verify': {
-        const result = this.kernel.verify(args);
-        const data = result.data || {};
-        const evidence = Array.isArray(result.evidence) ? result.evidence : [];
-        let out = `Verify: ${data.status || 'unknown'} (confidence: ${typeof data.confidence === 'number' ? data.confidence.toFixed(2) : 'n/a'})`;
-        if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\nEvidence: ${evidence[0].text}`;
-        return out;
-      }
-      case 'sor': {
-        const result = this.kernel.ask(args);
-        const answer = result.data.answer;
-        return answer === 'Bilmiyorum' ? `X ${answer}` : `Cevap: ${answer}`;
-      }
-      case 'neden': {
-        const result = this.kernel.reason(args);
-        const answer = result.data.answer;
-        return answer === 'Bilmiyorum' ? `X ${answer}` : `Neden: ${answer}`;
-      }
-      case 'karşılaştır': {
-        // Defaults, the way _evaluateCliGate()'s 'huqan.compare' branch already
-        // writes it. normalizeCompareArgs() returns the text unchanged when it
-        // finds neither '|' nor ' vs ', so a single-term `compare: elma` reached
-        // `right.trim()` on undefined and threw a raw stack trace at the user
-        // (#1029).
-        const [left = '', right = ''] = String(args || '').split('|');
-        if (!left.trim() || !right.trim()) {
-          return commandFailure('Kullanim: compare: <a>|<b>', opts);
-        }
-        const result = this.kernel.compare(left.trim(), right.trim());
-        const answer = result.data.answer;
-        return answer === 'Bilmiyorum' ? `X ${answer}` : `Karsilastirma: ${answer}`;
-      }
-      case 'mri': {
-        this._ensureProductCapabilities();
-        const run = this.kernel.runCapability('ideaMri', { text: String(args || '').trim() });
-        return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) {
-            return commandFailure(`MRI error: ${result?.error || 'unknown error'}`, opts);
-          }
-          const data = result.data || {};
-          const claim = data.mainClaim || String(args || '').trim();
-          const risks = Array.isArray(data.risks)
-            ? data.risks.slice(0, 2).map(item => item?.text).filter(Boolean).join(' | ')
-            : '';
-          const gaps = Array.isArray(data.missingEvidence)
-            ? data.missingEvidence.slice(0, 2).map(item => item?.text).filter(Boolean).join(' | ')
-            : '';
-          return `MRI: ${claim}\nRiskler: ${risks || 'yok'}\nEksik kanit: ${gaps || 'yok'}`;
-        });
-      }
-      case 'tartis': {
-        this._ensureProductCapabilities();
-        const run = this.kernel.runCapability('devilAdvocate', { text: String(args || '').trim() });
-        return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) {
-            return commandFailure(`Debate error: ${result?.error || 'unknown error'}`, opts);
-          }
-          const data = result.data || {};
-          return `Devil's advocate (${data.mode || 'unknown'}): ${data.counterArgument || 'no output'}`;
-        });
-      }
-      case 'celiski': {
-        this._ensureProductCapabilities();
-        const run = this.kernel.runCapability('contradictionAlert', { text: String(args || '').trim() });
-        return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) {
-            return commandFailure(`Contradiction error: ${result?.error || 'unknown error'}`, opts);
-          }
-          const data = result.data || {};
-          const count = Array.isArray(data.conflictingThoughts) ? data.conflictingThoughts.length : 0;
-          return `Contradiction analysis: ${count} finding(s)${data.conflictType ? ` (${data.conflictType})` : ''}`;
-        });
-      }
-
-      case 'llm-sor': {
-        const axiomResult = this.kernel.ask(args);
-        const verifyResult = this.kernel.verify(args);
-        const verify = verifyResult.data || {};
-        // The verify branch above guards these with `typeof === 'number'`; this
-        // one did not, so a non-numeric confidence or risk score crashed the
-        // same way (#1029).
-        const confidenceText = typeof verify.confidence === 'number' ? verify.confidence.toFixed(2) : 'n/a';
-        let out = `AXIOM dogrulamasi: ${verify.status || 'unknown'} (guven: ${confidenceText})`;
-        if (axiomResult.data.answer !== 'Bilmiyorum') out += `\nAXIOM: ${axiomResult.data.answer}`;
-        const evidence = Array.isArray(verifyResult.evidence) ? verifyResult.evidence : [];
-        if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\nKanit: ${evidence[0].text}`;
-        if (verify.risk && verify.risk.manipulation) {
-          const labels = Array.isArray(verify.risk.labels) && verify.risk.labels.length > 0 ? verify.risk.labels.join(', ') : 'manipulation';
-          const scoreText = typeof verify.risk.score === 'number' ? verify.risk.score.toFixed(2) : 'n/a';
-          out += `\nRisk: ${labels} (skor: ${scoreText})`;
-        }
-        out += `\nLLM yaniti icin: ollama run ${shellQuote(this.llm.model)} ${shellQuote(args)}`;
-        return out;
-      }
-      case 'plan': {
-        const result = this.agent.plan(args);
-        const plan = unwrapAgentPayload(result);
-        if (opts.json) return result;
-        const steps = (plan.steps || []).map((step, index) => `  ${index + 1}. ${step.action} -> ${step.tool} | ${step.rationale}`).join('\n');
-        const nextAction = plan.nextAction ? `${plan.nextAction.action} -> ${plan.nextAction.tool}` : 'none';
-        const recommendations = Array.isArray(plan.recommendations?.items) ? plan.recommendations.items : [];
-        const runtimeLine = isWorkflowRuntime(this.agent) ? 'Runtime: workflow' : 'Runtime: legacy';
-        return [
-          `Ajan planı: ${plan.objective} (${plan.status})`,
-          `Hedef: ${plan.goal}`,
-          runtimeLine,
-          `Seçilen araçlar: ${(plan.selectedTools || []).join(', ') || 'yok'}`,
-          `Next step: ${nextAction}`,
-          `Recommendations: ${recommendations.length > 0 ? recommendations.join(' | ') : 'none'}`,
-    `Steps:\n${steps || '  -'}`,
-          `Güven: ${plan.confidence.toFixed(2)}`,
-        ].join('\n');
-      }
-      case 'ajan': {
-        const result = this.agent.run(args);
-        if (opts.json) return result;
-        return result && typeof result.then === 'function'
-          ? result.then(resolved => formatAgentRunResult(this.agent, resolved))
-          : formatAgentRunResult(this.agent, result);
-      }
-      case 'yükle': {
-        try {
-          const filePath = resolveCliReadPath(args);
-          const text = fs.readFileSync(filePath, 'utf8');
-          const count = this.kernel.learnDocument(text, {
-            sourceType: 'cli',
-            sourceRef: `cli:yükle:${args}`,
-            actor: 'cli-user',
-          });
-          return `Learned ${count} fact(s) from "${args}".`;
-        } catch (error) {
-          return commandFailure(`Could not read file: ${error.message}`, opts);
-        }
-      }
-      case 'company-ingest': {
-        const payload = args && typeof args === 'object' ? args : {};
-        const source = String(payload.source || '').toLowerCase();
-        this._ensureCompanyCapabilities();
-
-        if (source === 'manuel' || source === 'manual') {
-          const run = this.kernel.runCapability('companyBrain', {
-            action: 'manual',
-            sourceType: 'manual',
-            text: payload.text,
-            author: payload.author,
-            date: payload.date,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`Manual ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Manual ingest: ok (${result.added || 0})`;
-          });
-        }
-
-        if (source === 'karar' || source === 'decision') {
-          const run = this.kernel.runCapability('companyBrain', {
-            action: 'decision',
-            sourceType: 'decision',
-            title: payload.title,
-            rationale: payload.rationale,
-            decidedBy: payload.author,
-            date: payload.date,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`Decision ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Decision ingest: ok (${result.decisionId || '-'})`;
-          });
-        }
-
-        if (source === 'github' || source === 'repo') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'github',
-            repoUrl: payload.repoUrl,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`Repo ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Repo ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        if (source === 'markdown' || source === 'md') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'markdown',
-            path: payload.targetPath,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`Markdown ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Markdown ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        if (source === 'json') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'json',
-            path: payload.targetPath,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`JSON ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Json ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        if (source === 'yaml' || source === 'yml') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'yaml',
-            path: payload.targetPath,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`YAML ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Yaml ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        if (source === 'git-log' || source === 'gitlog') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'git-log',
-            path: payload.targetPath,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`Git-log ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Git-log ingest: ok (commits=${result.commits || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        if (source === 'pdf') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'pdf',
-            path: payload.targetPath,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`PDF ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Pdf ingest: ok (files=${result.files || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        if (source === 'http' || source === 'url') {
-          const run = this.kernel.runCapability('repoMemory', {
-            action: 'ingest',
-            sourceType: 'http',
-            url: payload.repoUrl,
-            enforceConnectorFirewall: true,
-          });
-          return Promise.resolve(run).then(result => {
-            if (!result || result.ok === false) {
-              return commandFailure(`HTTP ingest error: ${result?.error || 'unknown error'}`, opts);
-            }
-            return `Http ingest: ok (urls=${result.urls || 0}, added=${result.added || 0})`;
-          });
-        }
-
-        return commandFailure(
-          'Desteklenmeyen kaynak. Kullanim: ogren --kaynak manuel|karar|github|markdown|json|yaml|git-log|pdf|http ...',
-          opts,
-          2
-        );
-      }
-      case 'company-query': {
-        this._ensureCompanyCapabilities();
-        const run = this.kernel.runCapability('companyBrain', {
-          action: 'query',
-          question: String(args || '').trim(),
-        });
-        return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) {
-            return commandFailure(`Query error: ${result?.error || 'unknown error'}`, opts);
-          }
-          return `Company Brain: ${result.answer}\nKaynak: ${result.source}\nRefs: ${(result.sourceRefs || []).join(', ') || 'yok'}`;
-        });
-      }
-      case 'ingest-status': {
-        this._ensureCompanyCapabilities();
-        const run = this.kernel.runCapability('ingestStatus', {});
-        return Promise.resolve(run).then(result => {
-          if (!result || result.ok === false) {
-            return commandFailure(`Ingest status error: ${result?.error || 'unknown error'}`, opts);
-          }
-          const dist = result.distribution || {};
-          return `Ingest status -> node:${result.totalNodes} repo:${dist.repo || 0} markdown:${dist.markdown || 0} json:${dist.json || 0} yaml:${dist.yaml || 0} gitlog:${dist['git-log'] || 0} pdf:${dist.pdf || 0} http:${dist.http || 0} manual:${dist.manual || 0}`;
-        });
-      }
-      case 'backup': {
-        const result = createBackup(this._backupOptions());
-        return `Backup complete: ${result.backupDir} (${result.copied.length} files)${this._commitCliMutation('backup')}`;
-      }
-      case 'kaydet':
-        this.kernel.persist();
-        return `Memory saved.${this._commitCliMutation('kaydet')}`;
-      case 'onaylar': {
-        const approvalArguments = { limit: 50, workspaceId: args?.workspaceId || 'default' };
-        const result = callMcpTool(
-          this.kernel,
-          { name: 'huqan.approvals', operatorCapability: this._createOperatorCapability('huqan.approvals', approvalArguments), arguments: approvalArguments },
-          this._approvalRuntime()
-        );
-        if (!result || result.ok === false) {
-          return commandFailure(`Approval list error: ${result?.error?.message || 'unknown error'}`, opts);
-        }
-        return formatCliApprovalList(result, args, opts.json);
-      }
-      case 'onayla': {
-        const approval = args && typeof args === 'object' ? args : parseApprovalDecisionArgs(args);
-        if (!approval.approvalId || approval.invalidDecision) {
-          return commandFailure(
-            'Usage: onayla <approvalId> [approved|rejected]',
-            opts,
-            2
-          );
-        }
-        const approvalArguments = { approvalId: approval.approvalId, decision: approval.decision, workspaceId: approval.workspaceId || 'default' };
-        return Promise.resolve(callMcpTool(this.kernel, {
-          name: 'huqan.approve',
-          operatorCapability: this._createOperatorCapability('huqan.approve', approvalArguments),
-          arguments: approvalArguments,
-        }, this._approvalRuntime())).then(result => {
-          if (!result || result.ok === false) {
-            const error = result?.error;
-            const message = `Approval error: ${error?.code || 'APPROVAL_FAILED'}: ${error?.message || 'unknown error'}`;
-            if (opts.throwOnError === true && error?.code) {
-              const failure = new Error(message);
-              failure.code = error.code;
-              const boundedMeta = {};
-              if (result?.meta?.identity && typeof result.meta.identity === 'object') boundedMeta.identity = result.meta.identity;
-              if (result?.meta?.oversight && typeof result.meta.oversight === 'object') boundedMeta.oversight = result.meta.oversight;
-              if (Object.keys(boundedMeta).length > 0) failure.meta = boundedMeta;
-              throw failure;
-            }
-            return commandFailure(message, opts);
-          }
-          return formatCliApprovalDecision(result, approval.approvalId, opts.json);
-        });
-      }
-      case 'audit': return require('./lib/cli-audit').runCliAudit(this.kernel, args, opts, { getApprovalStore: () => this._approvalRuntime().approvalStore }); case 'receipt': return require('./lib/cli-trust-receipt').runCliTrustReceipt(this.kernel, args, opts); case 'coder': return require('./lib/cli-coder').runCliCoder(args, opts);
-      case 'restore': {
-        // Windows EPERM guard (#1848): memory.db is open, so close every handle before restore replaces it.
-        const { storageWasOpen, closeRestoreHandles, reopenRestoreHandles } = require('./lib/sqlite-restore');
-        const storage = this.agent?.storage;
-        const storageOpen = storageWasOpen(storage);
-        closeRestoreHandles({ kernel: this.kernel, storage });
-        let result;
-        try {
-          result = runCliRestore(args, this._backupOptions({ backupDir: args?.backupDir || args || undefined }));
-        } catch (error) {
-          throw Object.assign(new Error(formatRestoreError(error)), { code: error.code, receipt: error.receipt });
-        } finally {
-          // Only reopen handles we actually closed: agent storage may already be
-          // closed (tests, standalone reads) or point at a file restore replaced.
-          // Reopening one that was closed up front would try to open whatever it
-          // resolved to and can throw SQLITE_NOTADB for a non-database path.
-          reopenRestoreHandles({ kernel: this.kernel, storage, storageOpen });
-        }
-        if (!result.dryRun) { this.kernel.reload(); this._commitCliMutation('restore'); }
-        return formatCliRestore(result, opts.json);
-      }
-      case 'düşün': {
-        if (args === 'dur') {
-          this.kernel.stopAutoThink();
-          return 'Dusunmeyi durdurdum.';
-        }
-        return this._formatCliGateMessage(command, {
-          decision: 'block',
-          reason: 'cli_automation_unavailable',
-        });
-      }
-      case 'optimize':
-      case 'konsolide':
-      case 'evolve':
-        return this._formatCliGateMessage(command, {
-          decision: 'block',
-          reason: 'cli_canonical_mutation_unavailable',
-        });
-      case 'quickstart':
-        return runQuickstartCommand({
-          callTool: callMcpTool,
-          createApprovalStore: createApprovalStoreFromKernel,
-          operatorToken: this._mcpOperatorToken,
-          createOperatorCapability: ({ tool, arguments: args }) => this._createOperatorCapability(tool, args),
-        });
-      case 'durum': {
-        // The same report huqan.status returns, rendered. Sharing the builder
-        // is what keeps the two surfaces from answering differently.
-        const report = buildSystemStatus(this.kernel, {
-          agentRuntime: isWorkflowRuntime(this.agent) ? 'workflow' : null,
-        });
-        return formatSystemStatusText(report, formatPluginCapabilityStatus(this.kernel?.plugins));
-      }
-      case 'rüya': {
-        const hypotheses = this.dream.dream();
-        if (hypotheses.length === 0) return 'I could not produce a hypothesis; I need more information.';
-        const lines = hypotheses.map(item => `  ${item.from} -> ${item.to} (${item.type}, guven: ${item.confidence.toFixed(2)})`);
-        return `${hypotheses.length} hipotez:\n${lines.join('\n')}`;
-      }
-      case 'hypotheses': {
-        const argsObject = args && typeof args === 'object' ? args : {};
-        const applies = argsObject.tuning === true && argsObject.apply === true;
-        const writes = argsObject.propose === true || argsObject.review === true;
-        return runCliHypotheses(this.kernel, argsObject, {
-          json: opts.json === true,
-          commitMutation: applies
-            ? () => this._commitCliMutation('hypotheses-tuning-apply', CLI_MUTATION_GATE['hypotheses-tuning-apply'])
-            : writes
-              ? () => this._commitCliMutation('hypotheses', CLI_MUTATION_GATE.hypotheses)
-              : null,
-        });
-      }
-      case 'selam':
-        return 'Hello! You can teach me something or ask me a question.';
-      case 'yardım':
-        return cliHelpText();
-      case 'anlamadım':
-        return 'I did not understand. Write a longer sentence, or type "yardım" for help.';
-      default:
-        return 'Unknown command.';
-    }
+    const cli = { kernel: this.kernel, agent: this.agent, dream: this.dream, llm: this.llm, mcpOperatorToken: this._mcpOperatorToken,
+      approvalRuntime: (...a) => this._approvalRuntime(...a), backupOptions: (...a) => this._backupOptions(...a),
+      commitCliMutation: (...a) => this._commitCliMutation(...a), createOperatorCapability: (...a) => this._createOperatorCapability(...a),
+      ensureCompanyCapabilities: (...a) => this._ensureCompanyCapabilities(...a), ensureProductCapabilities: (...a) => this._ensureProductCapabilities(...a),
+      formatCliGateMessage: (...a) => this._formatCliGateMessage(...a) };
+    const handler = Object.hasOwn(CLI_COMMAND_HANDLERS, command) ? CLI_COMMAND_HANDLERS[command] : null;
+    return handler ? handler(cli, args, opts, command) : 'Unknown command.';
   }
 
   start() {
@@ -721,31 +744,7 @@ class CLI {
       sourceTrust: 'local',
     };
 
-    let gateArgs = {};
-    switch (tool) {
-      case 'huqan.learn':
-        gateArgs = { text: typeof args === 'string' ? args : JSON.stringify(args || {}) };
-        break;
-      case 'huqan.agent':
-        gateArgs = { goal: typeof args === 'string' ? args : JSON.stringify(args || {}) };
-        break;
-      case 'huqan.ask':
-        gateArgs = { question: String(args || '') };
-        break;
-      case 'huqan.verify':
-        gateArgs = { statement: String(args || '') };
-        break;
-      case 'huqan.reason':
-        gateArgs = { subject: String(args || '') };
-        break;
-      case 'huqan.compare': {
-        const [left = '', right = ''] = String(args || '').split('|');
-        gateArgs = { left: left.trim(), right: right.trim() };
-        break;
-      }
-      default:
-        gateArgs = {};
-    }
+    const gateArgs = Object.hasOwn(CLI_GATE_ARGS, tool) ? CLI_GATE_ARGS[tool](args) : {};
 
     return evaluateMcpGate({ tool, args: gateArgs, metadata });
   }

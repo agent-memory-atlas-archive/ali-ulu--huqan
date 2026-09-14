@@ -16,7 +16,7 @@ Tracked in total: **74**
 | `workflow-tools.js` | 880 | — |
 | `lib/code-change-gate.js` | 834 | — |
 | `lib/sandbox-isolation.js` | 831 | — |
-| `cli.js` | 816 | OCP:40 FANOUT:27 |
+| `cli.js` | 815 | FANOUT:27 |
 
 ## Recorded debt, 401-800 lines (59)
 
