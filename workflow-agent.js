@@ -1,7 +1,5 @@
-﻿const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
-const { buildFinalSummary } = require('./finalizer');
-const { RECEIVER_OWNED_INTERNAL_TOOL, registerReceiverOwnedTool } = require('./lib/workflow-tool-registration');
-const { evaluateAgentActionFirewall, firewallError, createReceiverOwnedInternalActionRequest } = require('./lib/agent-action-firewall');
+﻿const { buildFinalSummary } = require('./finalizer');
+const { registerReceiverOwnedTool } = require('./lib/workflow-tool-registration');
 const { createExecutionScope, evaluateGoalBinding } = require('./lib/goal-binding');
 const {
   buildReport,
@@ -9,18 +7,9 @@ const {
   buildRecommendations,
 } = require('./lib/workflow-run-guidance');
 const { selectBudgetedTools } = require('./lib/workflow-budget-selection');
-
-const EXTERNAL_REVIEW_APPROVAL_TOKEN = Symbol('workflow-agent-external-review-approval');
-
-function isExternalReviewApproved(approval) {
-  return Boolean(
-    approval
-    && typeof approval === 'object'
-    && approval[EXTERNAL_REVIEW_APPROVAL_TOKEN] === true
-    && typeof approval.reason === 'string'
-    && approval.reason.trim().length > 0
-  );
-}
+const { ToolRegistry } = require('./lib/workflow-tool-registry');
+const { cloneValue, normalizeName, normalizeConfidence, foldText, tokenize, normalizeEvidence, normalizeError, extractText, normalizePositiveInteger } = require('./lib/workflow-values');
+const { isExternalReviewApproved, createExternalReviewApproval } = require('./lib/workflow-review-approval');
 
 const DEFAULT_MAX_STEPS = 4;
 
@@ -42,101 +31,6 @@ const DEFAULT_MAX_STEPS = 4;
  */
 const DEFAULT_BUDGET = 100;
 
-function cloneValue(value) {
-  if (value === undefined) return undefined;
-  return JSON.parse(JSON.stringify(value));
-}
-
-function normalizeName(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function clamp01(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return 0;
-  if (num <= 0) return 0;
-  if (num >= 1) return 1;
-  return num;
-}
-
-function normalizeConfidence(value, fallback = 0.5) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return clamp01(fallback);
-  return clamp01(num);
-}
-
-function foldText(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-function tokenize(value) {
-  return foldText(value)
-    .split(/[^a-z0-9]+/g)
-    .filter(Boolean);
-}
-
-function normalizeEvidenceItem(item) {
-  if (item === undefined || item === null) return null;
-  if (Array.isArray(item)) {
-    return item.map(normalizeEvidenceItem).filter(Boolean);
-  }
-  if (typeof item === 'string') {
-    return { type: 'text', value: item };
-  }
-  if (typeof item !== 'object') {
-    return { type: 'value', value: item };
-  }
-  const normalized = cloneValue(item);
-  if (Object.prototype.hasOwnProperty.call(normalized, 'confidence')) {
-    normalized.confidence = normalizeConfidence(normalized.confidence, 0);
-  }
-  return normalized;
-}
-
-function normalizeEvidence(value) {
-  if (value === undefined || value === null) return [];
-  const items = Array.isArray(value) ? value : [value];
-  return items.flatMap(normalizeEvidenceItem).filter(Boolean);
-}
-
-function normalizeError(error, fallbackCode = 'ERROR', fallbackMessage = 'Tool execution failed.') {
-  if (!error) {
-    return { code: fallbackCode, message: fallbackMessage };
-  }
-  if (typeof error === 'string') {
-    return { code: fallbackCode, message: error };
-  }
-  const code = error.code || fallbackCode;
-  const message = error.message || fallbackMessage;
-  return { code: String(code), message: String(message) };
-}
-
-function extractText(value) {
-  if (value === undefined || value === null) return '';
-  if (typeof value === 'string') return value.trim();
-  if (typeof value !== 'object') return String(value);
-  const candidates = [
-    value.finalAnswer,
-    value.answer,
-    value.summary,
-    value.explanation,
-    value.reason,
-    value.text,
-    value.output,
-    value.result,
-    value.message,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) {
-      return candidate.trim();
-    }
-  }
-  return '';
-}
-
 function resolveBudget(value, fallback = DEFAULT_BUDGET) {
   const num = Number(value);
   if (Number.isFinite(num) && num >= 0) return num;
@@ -144,12 +38,6 @@ function resolveBudget(value, fallback = DEFAULT_BUDGET) {
   const fallbackNum = Number(fallback);
   if (Number.isFinite(fallbackNum) && fallbackNum >= 0) return fallbackNum;
   return Number.POSITIVE_INFINITY;
-}
-
-function normalizePositiveInteger(value, fallback) {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num <= 0) return fallback;
-  return Math.floor(num);
 }
 
 function objectiveForGoal(goal) {
@@ -306,264 +194,6 @@ function buildStepInput(goal, objective, toolName, index, total) {
   return {
     ...base,
   };
-}
-
-function normalizeToolOutput(result, tool, policy, meta = {}) {
-
-  const hasEnvelope = result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'ok');
-  const envelope = hasEnvelope ? result : { ok: true, data: result };
-  const ok = Boolean(envelope.ok);
-  const data = envelope.data !== undefined ? cloneValue(envelope.data) : cloneValue(envelope);
-  const error = ok ? null : normalizeError(envelope.error, 'TOOL_ERROR', 'Tool execution failed.');
-  const evidence = normalizeEvidence(envelope.evidence || data?.evidence || []);
-  const confidenceSource = envelope.confidence ?? envelope.meta?.confidence ?? data?.confidence ?? meta.confidence;
-  const confidence = normalizeConfidence(confidenceSource, ok ? 0.55 : 0);
-
-  const firewallReviewApproved = meta.firewall
-    && meta.firewall.decision === 'review'
-    && isExternalReviewApproved(meta.approval);
-
-  return {
-    ok,
-    tool: tool.name,
-    status: meta.firewall && (meta.firewall.decision === 'block' || meta.firewall.decision === 'dry_run_only')
-      ? 'blocked'
-      : meta.firewall && meta.firewall.decision !== 'allow' && !firewallReviewApproved
-        ? 'review'
-        : policy && policy.blocked
-          ? 'blocked'
-          : policy && policy.review && !isExternalReviewApproved(meta.approval)
-            ? 'review'
-            : ok
-              ? 'done'
-              : 'error',
-    inputSchema: cloneValue(tool.inputSchema),
-    description: tool.description,
-    data,
-    output: data,
-    evidence,
-    confidence,
-    error,
-    meta: {
-      tool: {
-        name: tool.name,
-        description: tool.description,
-        inputSchema: cloneValue(tool.inputSchema),
-        kind: tool.kind,
-        cost: tool.cost,
-      },
-      policy: cloneValue(policy),
-      firewall: cloneValue(meta.firewall || null),
-    },
-  };
-}
-
-class ToolRegistry {
-  constructor(opts = {}) {
-    this._tools = [];
-    this._order = 0;
-    this._internalTools = new Set([
-      ...Array.from(INTERNAL_TOOLS || []),
-    ].map(normalizeName));
-  }
-
-  _cloneTool(tool) {
-    return {
-      name: tool.name,
-      description: tool.description,
-      inputSchema: cloneValue(tool.inputSchema),
-      kind: tool.kind,
-      cost: tool.cost,
-      order: tool.order,
-      tags: Array.isArray(tool.tags) ? [...tool.tags] : [],
-      registeredAt: tool.registeredAt,
-    };
-  }
-
-  registerTool(tool = {}) {
-    const name = normalizeName(tool.name);
-    if (!name) {
-      throw new Error('Tool name is required.');
-    }
-    if (typeof tool.run !== 'function') {
-      throw new Error(`Tool ${name} must define run(context, input).`);
-    }
-
-    const declaredKind = tool.kind;
-    if (declaredKind !== undefined && declaredKind !== 'internal' && declaredKind !== 'external') {
-      throw new Error(`Tool ${name} must declare kind as "internal" or "external".`);
-    }
-    const receiverOwnedInternal = tool[RECEIVER_OWNED_INTERNAL_TOOL] === true;
-    const internalAuthority = receiverOwnedInternal
-      || (INTERNAL_TOOLS.has(name) && declaredKind !== 'external');
-    const kind = internalAuthority ? 'internal' : 'external';
-
-    const record = {
-      name,
-      description: String(tool.description || ''),
-      inputSchema: tool.inputSchema ? cloneValue(tool.inputSchema) : { type: 'object' },
-      run: tool.run,
-      kind,
-      internalAuthority,
-      cost: normalizePositiveInteger(tool.cost, 1),
-      order: Number.isFinite(tool.order) ? Number(tool.order) : this._order,
-      tags: Array.isArray(tool.tags) ? [...tool.tags] : [],
-      registeredAt: this._order,
-    };
-    this._order += 1;
-
-    const existingIndex = this._tools.findIndex(entry => entry.name === name);
-    if (existingIndex >= 0) {
-      record.order = this._tools[existingIndex].order;
-      record.registeredAt = this._tools[existingIndex].registeredAt;
-      this._tools[existingIndex] = record;
-    } else {
-      this._tools.push(record);
-    }
-
-    return this._cloneTool(record);
-  }
-
-  listTools() {
-    return [...this._tools]
-      .sort((a, b) => a.order - b.order)
-      .map(tool => this._cloneTool(tool));
-  }
-
-  getTool(name) {
-    const normalized = normalizeName(name);
-    const tool = this._tools.find(entry => entry.name === normalized);
-    return tool ? this._cloneTool(tool) : null;
-  }
-
-  _getToolRecord(name) {
-    const normalized = normalizeName(name);
-    return this._tools.find(entry => entry.name === normalized) || null;
-  }
-
-  _policyInternalTools() {
-    const names = new Set([...this._internalTools]);
-    for (const tool of this._tools) {
-      if (tool.internalAuthority === true) {
-        names.add(tool.name);
-      }
-    }
-    return names;
-  }
-
-  async runTool(name, input, context = {}) {
-    const tool = this._getToolRecord(name);
-    if (!tool) {
-      const policy = evaluateToolPolicy({
-        tool: name,
-        input,
-        context,
-        internalTools: this._policyInternalTools(),
-      });
-      return {
-        ok: false,
-        tool: normalizeName(name),
-        status: 'blocked',
-        inputSchema: null,
-        description: '',
-        data: null,
-        output: null,
-        evidence: [],
-        confidence: 0,
-        error: normalizeError({ code: 'UNKNOWN_TOOL', message: `Unknown tool: ${String(name)}` }, 'UNKNOWN_TOOL', `Unknown tool: ${String(name)}`),
-        meta: {
-          tool: null,
-          policy,
-        },
-      };
-    }
-
-    const policy = evaluateToolPolicy({
-      tool: tool.name,
-      input,
-      context,
-      internalTools: this._policyInternalTools(),
-    });
-    const approved = isExternalReviewApproved(context.approval);
-    const firewallApproval = approved
-      ? {
-          explicit: true,
-          approved: true,
-          reviewed: true,
-          notes: context.approval.reason,
-          reviewedBy: 'workflow-operator',
-        }
-      : context.agentActionApproval;
-    const firewallRequest = {
-      surface: 'workflow',
-      tool: tool.name,
-      action: context.action || context.step?.action || context.operationType || tool.name,
-      input,
-      context: {
-        ...context,
-        workspaceId: context.workspaceId || context.plan?.workspaceId || 'default',
-        actor: context.actor || 'workflow-agent',
-      },
-      approval: firewallApproval,
-      preview: context.preview === true,
-      dryRun: context.dryRun === true,
-    };
-    const firewall = evaluateAgentActionFirewall(tool.internalAuthority === true
-      ? createReceiverOwnedInternalActionRequest(firewallRequest)
-      : firewallRequest);
-
-    // A review is an execution gate, not a post-execution label. The same
-    // unforgeable operator approval that satisfies external review may release
-    // a firewall review for either tool kind.
-    if (firewall.decision === 'block' || firewall.decision === 'dry_run_only'
-      || (tool.kind === 'internal' && firewall.decision === 'review' && !approved)) {
-      return normalizeToolOutput({
-        ok: false,
-        error: {
-          code: firewallError(firewall.decision),
-          message: firewall.reason || 'Agent action was stopped by the action firewall.',
-        },
-        evidence: [],
-        meta: { policy, firewall },
-      }, tool, policy, { ...context, firewall });
-    }
-
-    if (tool.kind === 'external' && policy.blocked) {
-      return normalizeToolOutput({
-        ok: false,
-        error: {
-          code: 'TOOL_BLOCKED',
-          message: policy.reasons[0] || `Tool ${tool.name} is blocked.`,
-        },
-        evidence: [],
-        meta: { policy, firewall },
-      }, tool, policy, { ...context, firewall });
-    }
-
-    if (tool.kind === 'external' && policy.review && !approved) {
-      return normalizeToolOutput({
-        ok: false,
-        error: {
-          code: 'TOOL_REVIEW_REQUIRED',
-          message: policy.reasons[0] || `Tool ${tool.name} requires review.`,
-        },
-        evidence: [],
-        meta: { policy, firewall },
-      }, tool, policy, { ...context, firewall });
-    }
-
-    try {
-      const result = await Promise.resolve(tool.run(cloneValue(context), cloneValue(input)));
-      return normalizeToolOutput(result, tool, policy, { ...context, firewall });
-    } catch (error) {
-      return normalizeToolOutput({
-        ok: false,
-        error: normalizeError(error, 'TOOL_ERROR', `Tool ${tool.name} threw an error.`),
-        evidence: [],
-        meta: { policy, firewall },
-      }, tool, policy, { ...context, firewall });
-    }
-  }
 }
 
 class WorkflowAgent {
@@ -928,10 +558,5 @@ module.exports.normalizeError = normalizeError;
 module.exports.DEFAULT_BUDGET = DEFAULT_BUDGET;
 module.exports.DEFAULT_MAX_STEPS = DEFAULT_MAX_STEPS;
 module.exports.resolveBudget = resolveBudget;
-module.exports.createExternalReviewApproval = function createExternalReviewApproval(reason) {
-  if (typeof reason !== 'string' || !reason.trim()) {
-    throw new TypeError('createExternalReviewApproval(reason): reason must be a non-empty string');
-  }
-  return { [EXTERNAL_REVIEW_APPROVAL_TOKEN]: true, reason };
-};
+module.exports.createExternalReviewApproval = createExternalReviewApproval;
 

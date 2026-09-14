@@ -3,7 +3,7 @@
 
 Tracked in total: **74**
 
-## Decomposition owed, over 800 lines (10)
+## Decomposition owed, over 800 lines (9)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -11,14 +11,13 @@ Tracked in total: **74**
 | `kernel.js` | 1073 | ISP:1 DIP FANOUT:39 |
 | `server.js` | 1017 | FANOUT:52 |
 | `lib/memory-store.js` | 968 | FANOUT:23 |
-| `workflow-agent.js` | 937 | — |
 | `agent.js` | 931 | — |
 | `workflow-tools.js` | 880 | — |
 | `lib/code-change-gate.js` | 834 | — |
 | `lib/sandbox-isolation.js` | 831 | — |
 | `cli.js` | 815 | FANOUT:27 |
 
-## Recorded debt, 401-800 lines (59)
+## Recorded debt, 401-800 lines (60)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -51,6 +50,7 @@ Tracked in total: **74**
 | `lib/external-action-receipt.js` | 590 | — |
 | `lib/ingest.js` | 587 | — |
 | `lib/memory-schema.js` | 568 | — |
+| `workflow-agent.js` | 562 | — |
 | `lib/causal/causal-verdict.js` | 555 | — |
 | `lib/automation-safety-gate/automation-operation-classifier.js` | 545 | — |
 | `lib/dream-experiment-loop.js` | 533 | — |
