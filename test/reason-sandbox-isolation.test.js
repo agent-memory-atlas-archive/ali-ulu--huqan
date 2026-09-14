@@ -26,7 +26,7 @@ function fakeAxiomCoreFactory() {
       batches: [],
       learnBatchCalls: 0,
       _fallback: null,
-      async _send(cmd) {
+      async send(cmd) {
         assert.strictEqual(instance.destroyed, false, 'a destroyed sandbox backend was reused');
         instance.batches.push(cmd);
         const results = (cmd.commands || []).map((child) => {
@@ -41,7 +41,7 @@ function fakeAxiomCoreFactory() {
       async learnBatch(texts, opts = {}) {
         instance.learnBatchCalls += 1;
         const commands = texts.map(text => ({ cmd: 'learn', text, ...opts }));
-        return instance._send({ cmd: 'batch', commands });
+        return instance.send({ cmd: 'batch', commands });
       },
       destroy() { instance.destroyed = true; },
     };
@@ -90,7 +90,8 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
     let destroyed = false;
     const createRustGraph = () => ({
       _fallback: null,
-      _send: async () => ({ ok: true, results: [] }),
+      send: async () => ({ ok: true, results: [] }),
+      sendBatch: async () => ({ ok: true, results: [] }),
       learnBatch: async () => ({ ok: false, error: 'process_exited' }),
       destroy() { destroyed = true; },
     });
@@ -114,7 +115,7 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
       const instance = {
         destroyed: false,
         _fallback: null,
-        async _send() { return { ok: false, error: 'process_exited' }; },
+        async send() { return { ok: false, error: 'process_exited' }; },
         destroy() { instance.destroyed = true; },
       };
       instances.push(instance);
@@ -134,7 +135,7 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
       const fallback = { iAmAGraph: true };
       return {
         _fallback: fallback,
-        async _send() { return fallback; },
+        async send() { return fallback; },
         destroy() { destroyed = true; },
       };
     };
@@ -142,6 +143,26 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
     const answers = await runRustSandbox({ learn: [CAT], ask: [CAT], createRustGraph });
     assert.strictEqual(answers, null, 'the JS fallback object was mistaken for a Rust reply');
     assert.strictEqual(destroyed, true);
+  });
+
+  it('reaches the backend only through the public send surface (#2350)', async () => {
+    // No _send here on purpose: the module must not need the private transport.
+    const createRustGraph = () => ({
+      _fallback: null,
+      batches: [],
+      async send(cmd) {
+        this.batches.push(cmd);
+        const results = ((cmd && cmd.commands) || []).map((child) => {
+          if (child.cmd === 'learn') return { ok: true };
+          return { ok: true, answer: 'biliyorum' };
+        });
+        return { ok: true, results };
+      },
+      destroy() {},
+    });
+
+    const answers = await runRustSandbox({ learn: [CAT], ask: [CAT], createRustGraph });
+    assert.deepStrictEqual(answers, ['biliyorum']);
   });
 });
 
@@ -151,7 +172,7 @@ describe('Kernel#reasonSandbox never routes through the shared bridge (#758)', (
     let sharedSends = 0;
     let sharedDestroyed = false;
     kernel._rust = {
-      _send: async () => { sharedSends += 1; return { ok: true, results: [{ answer: 'leaked' }] }; },
+      send: async () => { sharedSends += 1; return { ok: true, results: [{ answer: 'leaked' }] }; },
       destroy: () => { sharedDestroyed = true; },
     };
 

@@ -81,7 +81,7 @@ class RustGraph {
   _start() {
     // Both branches below are one-shot: once a Rust process is spawned OR the
     // JS fallback Graph is built, _start must not run again. Guarding only on
-    // _proc meant every _send() rebuilt the fallback from scratch whenever the
+    // _proc meant every send() rebuilt the fallback from scratch whenever the
     // Rust binary was absent, so addNode/addEdge/getStats each ran against a
     // different Graph instance and no state ever accumulated.
     if (this._proc || this._fallback) return;
@@ -147,7 +147,7 @@ class RustGraph {
     this._pending.clear();
   }
 
-  _send(cmd) {
+  send(cmd) {
     return new Promise((resolve) => {
       this._start();
       if (this._fallback) {
@@ -202,7 +202,7 @@ class RustGraph {
     const cmd = { cmd: 'add_node', id, label };
     if (opts && opts.provenance !== undefined) cmd.provenance = opts.provenance;
     if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
-    const res = await this._send(cmd);
+    const res = await this.send(cmd);
     if (res === this._fallback) return this._fallback.addNode(id, label, opts.provenance, opts);
     if (!res.ok) return null;
     return { id, label, weight: 0.5, provenance: opts.provenance ?? null, workspaceId: opts.workspaceId };
@@ -212,20 +212,20 @@ class RustGraph {
   // to `default` rather than to "every workspace": an unscoped read must not
   // see another tenant's node just because it shares an id (#759).
   async getNode(id, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'get_node', id, workspaceId });
+    const res = await this.send({ cmd: 'get_node', id, workspaceId });
     if (res === this._fallback) return this._fallback.getNode(id, workspaceId);
     if (!res.ok || !res.node) return null;
     return res.node;
   }
 
   async removeNode(id, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'remove_node', id, workspaceId });
+    const res = await this.send({ cmd: 'remove_node', id, workspaceId });
     if (res === this._fallback) return this._fallback.removeNode(id, workspaceId);
     return res.ok;
   }
 
   async getWeight(id, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'get_weight', id, workspaceId });
+    const res = await this.send({ cmd: 'get_weight', id, workspaceId });
     if (res === this._fallback) return this._fallback.getWeight(id, workspaceId);
     return res.weight || 0;
   }
@@ -241,7 +241,7 @@ class RustGraph {
     if (opts && opts.confidence !== undefined) cmd.confidence = opts.confidence;
     if (opts && opts.evidence !== undefined) cmd.evidence = opts.evidence;
     if (opts && opts.sourceRef !== undefined) cmd.sourceRef = opts.sourceRef;
-    const res = await this._send(cmd);
+    const res = await this.send(cmd);
     if (res === this._fallback) return this._fallback.addEdge(fromId, toId, relation, opts);
     if (!res.ok) return null;
     return {
@@ -270,13 +270,13 @@ class RustGraph {
   }
 
   async getEdges(nodeId, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'get_edges', id: nodeId, workspaceId });
+    const res = await this.send({ cmd: 'get_edges', id: nodeId, workspaceId });
     if (res === this._fallback) return this._fallback.getEdges(nodeId, workspaceId);
     return res.edges || [];
   }
 
   async getInEdges(nodeId, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'get_in_edges', id: nodeId, workspaceId });
+    const res = await this.send({ cmd: 'get_in_edges', id: nodeId, workspaceId });
     if (res === this._fallback) return this._fallback.getInEdges(nodeId, workspaceId);
     return res.edges || [];
   }
@@ -287,7 +287,7 @@ class RustGraph {
   // a real 'query' command, and workspaceId is accepted for parity with
   // Graph.query(label, workspaceId).
   async query(label, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'query', label, workspaceId });
+    const res = await this.send({ cmd: 'query', label, workspaceId });
     if (res === this._fallback) return this._fallback.query(label, workspaceId);
     return res.nodes || [];
   }
@@ -303,25 +303,25 @@ class RustGraph {
   }
 
   async cosineSimilarity(aId, bId, workspaceId = 'default') {
-    const res = await this._send({ cmd: 'cosine_similarity', a: aId, b: bId, workspaceId });
+    const res = await this.send({ cmd: 'cosine_similarity', a: aId, b: bId, workspaceId });
     if (res === this._fallback) return this._fallback.cosineSimilarity(aId, bId, workspaceId);
     return res.similarity || 0;
   }
 
   async prune(threshold) {
-    const res = await this._send({ cmd: 'prune', threshold: String(threshold || 0.01) });
+    const res = await this.send({ cmd: 'prune', threshold: String(threshold || 0.01) });
     if (res === this._fallback) return this._fallback.prune(threshold);
     return res.pruned || 0;
   }
 
   async optimize() {
-    const res = await this._send({ cmd: 'optimize' });
+    const res = await this.send({ cmd: 'optimize' });
     if (res === this._fallback) return this._fallback.optimize();
     return { pruned: res.pruned || 0, removedNodes: res.removed_nodes || 0 };
   }
 
   async getStats() {
-    const res = await this._send({ cmd: 'stats' });
+    const res = await this.send({ cmd: 'stats' });
     if (res === this._fallback) return this._fallback.getStats();
     return res.stats || { nodes: 0, edges: 0, decayLambda: 0.05 };
   }
@@ -329,7 +329,7 @@ class RustGraph {
   async learn(text, opts = {}) {
     const cmd = { cmd: 'learn', text };
     if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
-    const res = await this._send(cmd);
+    const res = await this.send(cmd);
     return res && res.ok;
   }
 
@@ -349,7 +349,7 @@ class RustGraph {
       if (workspaceId !== undefined) command.workspaceId = workspaceId;
       return command;
     });
-    const res = await this._send({ cmd: 'batch', commands });
+    const res = await this.send({ cmd: 'batch', commands });
     if (res === this._fallback) return { ok: false, results: [], error: 'rust_unavailable' };
     if (!res || res.ok !== true || !Array.isArray(res.results)) {
       return { ok: false, results: [], error: res?.error || 'invalid_response' };
@@ -360,20 +360,20 @@ class RustGraph {
   async ask(question, opts = {}) {
     const cmd = { cmd: 'ask', question };
     if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
-    const res = await this._send(cmd);
+    const res = await this.send(cmd);
     if (!res || !res.ok) return 'Bilmiyorum';
     return res.answer;
   }
 
   async save(memPath) {
     if (this._fallback) { this._fallback.save(); return; }
-    const res = await this._send({ cmd: 'save', path: memPath || this.memoryPath });
+    const res = await this.send({ cmd: 'save', path: memPath || this.memoryPath });
     return res && res.ok;
   }
 
   async load(memPath) {
     if (this._fallback) { this._fallback.load(); return; }
-    const res = await this._send({ cmd: 'load', path: memPath || this.memoryPath });
+    const res = await this.send({ cmd: 'load', path: memPath || this.memoryPath });
     return res && res.ok;
   }
 

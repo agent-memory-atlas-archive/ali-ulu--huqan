@@ -28,7 +28,7 @@ test('rustGraph _send resolves with request_timeout instead of hanging forever (
   const keepAlive = setTimeout(() => {}, 200);
   try {
     const rg = makeHangingRustGraph(20);
-    const res = await rg._send({ cmd: 'add_node', id: 'x' });
+    const res = await rg.send({ cmd: 'add_node', id: 'x' });
     assert.equal(res.ok, false);
     assert.equal(res.error, 'request_timeout');
   } finally {
@@ -39,7 +39,7 @@ test('rustGraph _send resolves with request_timeout instead of hanging forever (
 test('rustGraph clears the timer once a real reply arrives (no leaked resolve)', async () => {
   const rg = makeHangingRustGraph(500);
   rg._start();
-  const pending = rg._send({ cmd: 'add_node', id: 'y' });
+  const pending = rg.send({ cmd: 'add_node', id: 'y' });
   const [reqId] = rg._pending.keys();
   rg._onData(Buffer.from(JSON.stringify({ _reqId: reqId, ok: true }) + '\n'));
   const res = await pending;
@@ -54,7 +54,7 @@ test('rustGraph _send does not crash when the process is gone before write (#373
     this._fallback = null;
     this._ready = true;
   };
-  const res = await rg._send({ cmd: 'add_node', id: 'z' });
+  const res = await rg.send({ cmd: 'add_node', id: 'z' });
   assert.equal(res.ok, false);
   assert.equal(res.error, 'process_unavailable');
 });
