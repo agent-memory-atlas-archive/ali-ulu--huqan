@@ -19,7 +19,7 @@
     "finalizer.js": 604,
     "graph.js": 1242,
     "kernel.js": 1073,
-    "kernel.v2.js": 801,
+    "kernel.v2.js": 771,
     "lib/a2a/bounded-exchange.js": 693,
     "lib/a2a/exchange-route.js": 493,
     "lib/agent-action-firewall.js": 437,

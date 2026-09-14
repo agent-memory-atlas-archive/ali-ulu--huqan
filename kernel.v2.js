@@ -586,28 +586,15 @@ class KernelV2 {
 
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
     const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);
+    // #2117: KernelV2 substitutes a v1 verdict only through a named rule; see
+    // docs/adr/ADR-013-kernel-v2-substitutability.md. Rule: unresolved multi-word subject.
     if (parsed.subject.includes(' ') && !resolvedSubject) return this._withVerifyDetails(contradictedBaseVerdict(this.kernel, verificationStatement, opts) || this.ok('verify', { status: 'unknown', confidence: 0, unresolvedSubject: parsed.subject, subjectResolution: 'exact_match_required' }), risk);
     if (resolvedSubject) parsed = { ...parsed, subject: resolvedSubject };
-    const knownFacts = this._collectFactTargets(parsed.subject, workspaceId);
-    if (parsed.isNegated && knownFacts.length > 0) {
-      const directPositive = knownFacts.find(item => item.target === normalizedTargetToken);
-      if (directPositive) {
-        return this._withVerifyDetails(this.ok(
-          'verify',
-          {
-            status: 'contradicted',
-            confidence: Math.max(0.65, Math.min(0.9, directPositive.weight || 0.72)),
-            inferred: true,
-            contradictionReason: 'negated_statement_conflicts_with_known_fact',
-            conflictTarget: normalizedTarget,
-            confidenceSource: 'known-fact-conflict',
-          },
-          this._buildDirectFactEvidence(parsed.subject, workspaceId),
-          {
-            inferredBy: 'fact-negation-conflict',
-          }
-        ), risk);
-      }
+    // Rule: negated statement vs known fact edge, applied before v1 is consulted.
+    const factConflict = buildNegationConflict(this, parsed, normalizedTarget, normalizedTargetToken, workspaceId, { factsOnly: true });
+    if (factConflict) {
+      const { evidence: factEvidence, meta: factMeta, ...factData } = factConflict;
+      return this._withVerifyDetails(this.ok('verify', factData, factEvidence, factMeta), risk);
     }
 
     const base = this.kernel.verify(verificationStatement, opts);
@@ -625,23 +612,6 @@ class KernelV2 {
     );
 
     if (!contradictionDetails) {
-      const semanticSignals = base?.meta?.semanticTrust?.signals;
-      const typePredicateDriftOnly = !parsed.isNegated
-        && base?.data?.status === 'contradicted'
-        && Array.isArray(semanticSignals)
-        && semanticSignals.length > 0
-        && semanticSignals.every(signal => (
-          signal?.rule === 'PREDICATE_DRIFT'
-          && this._isTypeRelation(signal?.meta?.storedRelation)
-        ));
-      if (typePredicateDriftOnly) {
-        return this._withVerifyDetails(this.ok(
-          'verify',
-          { status: 'unknown', confidence: 0 },
-          [],
-          base.meta,
-        ), risk);
-      }
       return this._withVerifyDetails(resolveNegativeClaimFallback(this.kernel, base, verificationStatement, opts, workspaceId, parsed, normalizedTarget), risk);
     }
 
