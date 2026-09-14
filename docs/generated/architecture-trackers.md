@@ -30,7 +30,7 @@ Tracked in total: **74**
 | `lib/human-oversight-approval-runtime.js` | 744 | — |
 | `lib/external-client-mutation-receipt-owner.js` | 741 | — |
 | `lib/verify.js` | 741 | — |
-| `lib/risk-classify.js` | 740 | OCP:13 |
+| `lib/risk-classify.js` | 739 | — |
 | `lib/tool-call-gate.js` | 731 | — |
 | `plugin.js` | 728 | — |
 | `dream.js` | 726 | — |

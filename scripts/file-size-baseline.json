@@ -62,7 +62,7 @@
     "lib/receipt/public-trust-receipt.js": 660,
     "lib/receipt/receipt-read-index.js": 640,
     "lib/receipt/trusted-key-resolver.js": 421,
-    "lib/risk-classify.js": 740,
+    "lib/risk-classify.js": 739,
     "lib/sandbox-isolation.js": 831,
     "lib/storage/tool-approval-methods.js": 424,
     "lib/tool-call-gate.js": 731,
