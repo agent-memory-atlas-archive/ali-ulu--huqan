@@ -127,6 +127,13 @@ for `constructor-super`. No rule is globally `off`. The file-size ratchet sets
 that split: a directive on its own line grows four files already recorded at
 their ceiling, so in those the directive rides on the annotated line.
 
+### Kernel ↔ KernelV2 substitutability
+
+`KernelV2` may add fields to a `Kernel` verdict but may change one only through
+a named rule with one producer and a test. The rules, and what a caller may
+assume holds for both, are in
+[ADR-013](adr/ADR-013-kernel-v2-substitutability.md) (#2117).
+
 ## 7. Changing this policy
 
 Through an ADR, not an edit. The failure this document replaces began as one

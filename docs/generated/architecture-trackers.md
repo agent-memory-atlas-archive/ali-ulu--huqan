@@ -3,7 +3,7 @@
 
 Tracked in total: **84**
 
-## Decomposition owed, over 800 lines (12)
+## Decomposition owed, over 800 lines (11)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -18,14 +18,14 @@ Tracked in total: **84**
 | `lib/sandbox-isolation.js` | 831 | — |
 | `cli.js` | 816 | OCP:40 FANOUT:27 |
 | `mcpServer.js` | 807 | OCP:23 FANOUT:34 |
-| `kernel.v2.js` | 801 | ISP:6 DIP |
 
-## Recorded debt, 401-800 lines (58)
+## Recorded debt, 401-800 lines (59)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `agent.v3.js` | 790 | DIP |
 | `lib/external-action-gate-install.js` | 779 | — |
+| `kernel.v2.js` | 771 | ISP:6 DIP |
 | `lib/observability/service.js` | 767 | — |
 | `lib/human-oversight-approval-runtime.js` | 744 | — |
 | `lib/external-client-mutation-receipt-owner.js` | 741 | — |

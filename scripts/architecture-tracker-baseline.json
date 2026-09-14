@@ -62,8 +62,8 @@
       ]
     },
     "kernel.v2.js": {
-      "band": "decompose",
-      "lines": 801,
+      "band": "recorded",
+      "lines": 771,
       "signals": [
         "DIP",
         "ISP:6"
