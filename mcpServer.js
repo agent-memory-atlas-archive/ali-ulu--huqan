@@ -369,6 +369,64 @@ const OPERATOR_AUTHORIZED_VERDICT = Object.freeze({
   gatesEvaluated: false,
 });
 
+// #2142: one handler per MCP tool; a new tool is a row, not a case. Handlers that
+// require a module lazily keep a block body so require-scan still sees it as deferred.
+const readWorkflowTool = ({ kernel, name, args, gate }) => executeMcpReadWorkflow({ kernel, name, args, gate });
+const MCP_TOOL_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
+  'huqan.learn': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
+    skipConflicts: args.skipConflicts !== false,
+    maxSentences: args.maxSentences,
+  }), name, args, gate),
+  'huqan.ask': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate),
+  'huqan.verify': ({ kernel, name, args, gate }) => executeMcpVerify({ kernel, name, args, gate }),
+  'huqan.plan': ({ kernel, name, args, gate }) => withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
+    agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), { maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8) }),
+    name, args, gate,
+  )),
+  'huqan.agent': ({ kernel, name, args, gate }) => withTransientAgent(kernel, async (agent) => withMcpToolVerdictSurface(
+    await agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), { maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8) }),
+    name, args, gate,
+  )),
+  'huqan.policy': ({ kernel, name, args, gate }) => withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
+    agent.inspectToolPolicy(sanitizeMcpString(args.tool), sanitizeMcpString(args.input || '', MCP_MAX_TEXT), { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) }),
+    name, args, gate,
+  )),
+  'huqan.approval_detail': ({ kernel, name, args, gate, runtime }) => {
+    return require('./lib/mcp/approval-detail-tool').executeMcpApprovalDetail({ store: runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime), name, args, gate });
+  },
+  'huqan.approvals': ({ kernel, name, args, gate, runtime }) => {
+    const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
+    const approvalWorkspaceId = sanitizeMcpString(args.workspaceId, MCP_MAX_SHORT) || 'default';
+    const approvalLimit = boundedMcpInteger(args.limit, 50, 1, 50);
+    const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit, approvalWorkspaceId);
+    return withMcpToolVerdictSurface({
+      pendingCount: countPersistentApprovals(approvalStore, approvalWorkspaceId),
+      unresolvedCount: countUnresolvedApprovals(approvalStore, approvalWorkspaceId),
+      approvals: storedApprovals.slice(0, approvalLimit),
+    }, name, args, gate);
+  },
+  'huqan.reason': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.reason(sanitizeMcpString(args.subject)), name, args, gate),
+  'huqan.compare': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.compare(sanitizeMcpString(args.left), sanitizeMcpString(args.right)), name, args, gate),
+  'huqan.dream': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.dream({ depth: boundedMcpInteger(args.depth, 2, 1, 5) }), name, args, gate),
+  'huqan.fractal-learn': ({ kernel, name, args, gate }) => {
+    return require('./lib/mcp/fractal-learn-tool').executeMcpFractalLearn(kernel, name, args, gate);
+  },
+  'huqan.self-evolve': ({ kernel, name, args, gate }) => {
+    return require('./lib/mcp/self-evolve-tool').executeMcpSelfEvolve(kernel, name, args, gate);
+  },
+  'huqan.advocate': readWorkflowTool, 'huqan.web_research': readWorkflowTool, 'huqan.search': readWorkflowTool,
+  'huqan.trust_receipt': readWorkflowTool, 'huqan.trust_receipt_detail': readWorkflowTool, 'huqan.status': readWorkflowTool, 'huqan.audit': readWorkflowTool,
+  'huqan.ingest_preview': ({ kernel, name, args, gate }) => {
+    const preview = buildIngestWorkflowPreview(args);
+    const result = preview.ok
+      ? kernel.ok('ingest_preview', Object.fromEntries(Object.entries(preview).filter(([key]) => key !== 'ok')))
+      : kernel.fail('ingest_preview', preview.code || 'INGEST_PREVIEW_FAILED', preview.error || 'ingest preview failed');
+    return withMcpToolVerdictSurface(result, name, args, gate);
+  },
+  'huqan.ingest_status': ({ kernel, name, args, gate, runtime }) => withMcpToolVerdictSurface(readIngestRunStatus(kernel, args, runtime), name, args, gate),
+  'huqan.ingest_execute': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(buildMcpIngestExecuteResult(kernel, args, gate), name, args, gate),
+}));
+
 function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
   const args = parseJsonObject(safeParams.arguments, {});
 
@@ -524,86 +582,9 @@ function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
     }, name, args, gate);
   }
 
-  switch (name) {
-    case 'huqan.learn':
-      return withMcpToolVerdictSurface(kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
-        skipConflicts: args.skipConflicts !== false,
-        maxSentences: args.maxSentences,
-      }), name, args, gate);
-    case 'huqan.ask':
-      return withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate);
-    case 'huqan.verify':
-      return executeMcpVerify({ kernel, name, args, gate });
-    case 'huqan.plan':
-      return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
-        agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-          maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
-        }),
-        name,
-        args,
-        gate,
-      ));
-    case 'huqan.agent':
-      return withTransientAgent(kernel, async (agent) => withMcpToolVerdictSurface(
-        await agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-          maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8),
-        }),
-        name,
-        args,
-        gate,
-      ));
-    case 'huqan.policy':
-      return withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
-        agent.inspectToolPolicy(
-          sanitizeMcpString(args.tool),
-          sanitizeMcpString(args.input || '', MCP_MAX_TEXT),
-          { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) },
-        ),
-        name,
-        args,
-        gate,
-      ));
-    case 'huqan.approval_detail': return require('./lib/mcp/approval-detail-tool').executeMcpApprovalDetail({ store: runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime), name, args, gate });
-    case 'huqan.approvals':
-      const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-      const approvalWorkspaceId = sanitizeMcpString(args.workspaceId, MCP_MAX_SHORT) || 'default';
-      const approvalLimit = boundedMcpInteger(args.limit, 50, 1, 50);
-      const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit, approvalWorkspaceId);
-      return withMcpToolVerdictSurface({
-        pendingCount: countPersistentApprovals(approvalStore, approvalWorkspaceId),
-        unresolvedCount: countUnresolvedApprovals(approvalStore, approvalWorkspaceId),
-        approvals: storedApprovals.slice(0, approvalLimit),
-      }, name, args, gate);
-    case 'huqan.reason':
-      return withMcpToolVerdictSurface(kernel.reason(sanitizeMcpString(args.subject)), name, args, gate);
-    case 'huqan.compare':
-      return withMcpToolVerdictSurface(kernel.compare(
-        sanitizeMcpString(args.left),
-        sanitizeMcpString(args.right),
-      ), name, args, gate);
-    case 'huqan.dream':
-      return withMcpToolVerdictSurface(kernel.dream({
-        depth: boundedMcpInteger(args.depth, 2, 1, 5),
-      }), name, args, gate);
-    case 'huqan.fractal-learn': return require('./lib/mcp/fractal-learn-tool').executeMcpFractalLearn(kernel, name, args, gate);
-    case 'huqan.self-evolve': return require('./lib/mcp/self-evolve-tool').executeMcpSelfEvolve(kernel, name, args, gate);
-    case 'huqan.advocate': case 'huqan.web_research': case 'huqan.search':
-    case 'huqan.trust_receipt': case 'huqan.trust_receipt_detail': case 'huqan.status': case 'huqan.audit':
-      return executeMcpReadWorkflow({ kernel, name, args, gate });
-    case 'huqan.ingest_preview': {
-      const preview = buildIngestWorkflowPreview(args);
-      const result = preview.ok
-        ? kernel.ok('ingest_preview', Object.fromEntries(Object.entries(preview).filter(([key]) => key !== 'ok')))
-        : kernel.fail('ingest_preview', preview.code || 'INGEST_PREVIEW_FAILED', preview.error || 'ingest preview failed');
-      return withMcpToolVerdictSurface(result, name, args, gate);
-    }
-    case 'huqan.ingest_status':
-      return withMcpToolVerdictSurface(readIngestRunStatus(kernel, args, runtime), name, args, gate);
-    case 'huqan.ingest_execute':
-      return withMcpToolVerdictSurface(buildMcpIngestExecuteResult(kernel, args, gate), name, args, gate);
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
+  const handler = Object.hasOwn(MCP_TOOL_HANDLERS, name) ? MCP_TOOL_HANDLERS[name] : null;
+  if (!handler) throw new Error(`Unknown tool: ${name}`);
+  return handler({ kernel, name, args, gate, runtime });
 }
 
 function executeReadOnlyDryRun(kernel, requestedName, args) {
