@@ -200,6 +200,7 @@
     "lib/atp-conformance.js",
     "lib/audit-bounded-read.js",
     "lib/audit-log.js",
+    "lib/audit-query-primitives.js",
     "lib/audit-query.js",
     "lib/automation-safety-gate/automation-findings-summary.js",
     "lib/automation-safety-gate/automation-input-normalizer.js",
