@@ -1572,8 +1572,8 @@ describe('Plugin - Yonetici', () => {
           return nlp.extractFacts(text, knownNodes);
         },
         // REAL _parsePredicate (bound to the production Kernel instance).
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1730,8 +1730,8 @@ describe('Plugin - Yonetici', () => {
           capturedArg = knownNodes;
           return nlp.extractFacts(text, knownNodes);
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1824,8 +1824,8 @@ describe('Plugin - Yonetici', () => {
           capturedArg = knownNodes;
           return nlp.extractFacts(text, knownNodes);
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1923,8 +1923,8 @@ describe('Plugin - Yonetici', () => {
         extractFacts(text, knownNodes) {
           return nlp.extractFacts(text, knownNodes);
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -2010,8 +2010,8 @@ describe('Plugin - Yonetici', () => {
           capturedFacts = facts;
           return facts;
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
