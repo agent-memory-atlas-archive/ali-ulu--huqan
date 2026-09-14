@@ -121,7 +121,7 @@ class Dream {
       for (let d = 0; d < dims; d++) mag += vec[d] * vec[d];
       mag = Math.sqrt(mag);
       if (mag > 0) for (let d = 0; d < dims; d++) vec[d] /= mag;
-      this.graph._assignEmbedding(id, vec);
+      this.graph.assignEmbedding(id, vec);
     }
 
     const result = { dimensions: dims, nodes: nodes.length };

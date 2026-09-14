@@ -36,9 +36,7 @@
     "dream.js": {
       "band": "recorded",
       "lines": 726,
-      "signals": [
-        "ISP:1"
-      ]
+      "signals": []
     },
     "finalizer.js": {
       "band": "recorded",
