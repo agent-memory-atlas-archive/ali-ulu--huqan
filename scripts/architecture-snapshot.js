@@ -53,6 +53,46 @@ const isCompositionRoot = (file) => file.startsWith('bin/')
   || ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js'].includes(file)
   || /factory|runtime/.test(path.basename(file));
 
+/**
+ * Constructions the DIP regex matches that are not a coupling defect (#2268).
+ * The regex cannot tell an injected collaborator from a throwaway local
+ * structure, so those are recorded here -- each with its reason and a review
+ * date, like scripts/check-layers.js's ALLOWED -- rather than moved into a
+ * '*runtime*' file to silence it. `--check` fails on an expired entry and on
+ * one that no longer matches: a gone file, a composition root, or a file that
+ * constructs nothing any more.
+ */
+const DIP_ALLOWED = Object.freeze([
+  {
+    file: 'lib/self-healer/source-dependency-graph.js',
+    why: 'dreamDependencyCandidates builds a throwaway in-memory Graph (useSQLite: false; measured: no filesystem access) '
+      + 'so Dream can run over a source dependency graph. A local data structure, not a collaborator to inject.',
+    review_by: '2026-12-31',
+  },
+]);
+
+const isDipAllowed = (file) => DIP_ALLOWED.some((entry) => entry.file === file);
+
+function readRepoSource(file) {
+  const full = path.join(repoRoot, file);
+  return fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+}
+
+function dipExceptionViolations(entries = DIP_ALLOWED, { today = new Date().toISOString().slice(0, 10), readSource = readRepoSource } = {}) {
+  const violations = [];
+  for (const entry of entries) {
+    if (entry.review_by < today) {
+      violations.push(`${entry.file}: DIP exception expired on ${entry.review_by}`);
+      continue;
+    }
+    const source = readSource(entry.file);
+    if (source === null) violations.push(`${entry.file}: DIP exception is stale, the file is gone`);
+    else if (isCompositionRoot(entry.file)) violations.push(`${entry.file}: DIP exception is unnecessary, the file is a composition root`);
+    else if (!stripComments(source).match(CONSTRUCTS)) violations.push(`${entry.file}: DIP exception is stale, nothing is constructed any more`);
+  }
+  return violations;
+}
+
 const isProduct = (file) => !file.startsWith('scripts/')
   && !file.startsWith('examples/')
   && !file.startsWith('bin/');
@@ -69,7 +109,7 @@ function snapshot() {
     const body = stripComments(fs.readFileSync(path.join(repoRoot, file), 'utf8'));
     const signals = [];
     if (boundary[file]) signals.push(`ISP:${boundary[file].calls}`);
-    if (!isCompositionRoot(file) && body.match(CONSTRUCTS)) signals.push('DIP');
+    if (!isCompositionRoot(file) && !isDipAllowed(file) && body.match(CONSTRUCTS)) signals.push('DIP');
     for (const match of body.matchAll(/switch\s*\(([^)]{0,60})\)\s*\{/g)) {
       const tail = body.slice(match.index);
       const end = tail.indexOf('\n}');
@@ -271,6 +311,12 @@ function main(argv = process.argv.slice(2)) {
       console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
       return 1;
     }
+    const dipViolations = dipExceptionViolations();
+    if (dipViolations.length > 0) {
+      console.error('DIP exception list is out of date:');
+      for (const violation of dipViolations) console.error(`  ${violation}`);
+      return 1;
+    }
     const baselineIsCurrent = JSON.stringify(entries) === JSON.stringify(baseline.entries);
     if (!baselineIsCurrent && !argv.includes('--update-baseline')) {
       console.error('Architecture tracker baseline has unrecorded improvements; rerun with --update-baseline and commit the lowered baseline.');
@@ -312,6 +358,8 @@ module.exports = {
   checkTrackerArtifact,
   trackerBaselineViolations,
   baselineEvolutionViolations,
+  DIP_ALLOWED,
+  dipExceptionViolations,
   TRACKER_PATH,
   BASELINE_PATH,
   ACCEPTED,
