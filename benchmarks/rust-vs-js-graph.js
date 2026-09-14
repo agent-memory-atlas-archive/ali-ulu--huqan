@@ -55,10 +55,10 @@ async function benchRustBatch(n) {
   const t0 = process.hrtime.bigint();
   const addNodeCmds = [];
   for (let i = 0; i < n; i++) addNodeCmds.push({ cmd: 'add_node', id: `b${i}`, label: `label${i}` });
-  await g._send({ cmd: 'batch', commands: addNodeCmds });
+  await g.send({ cmd: 'batch', commands: addNodeCmds });
   const addEdgeCmds = [];
   for (let i = 0; i < n - 1; i++) addEdgeCmds.push({ cmd: 'add_edge', from: `b${i}`, to: `b${i + 1}`, relation: 'tür' });
-  await g._send({ cmd: 'batch', commands: addEdgeCmds });
+  await g.send({ cmd: 'batch', commands: addEdgeCmds });
   const t1 = process.hrtime.bigint();
   const usingFallback = !!g._fallback;
   g.destroy();

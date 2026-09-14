@@ -330,13 +330,6 @@
       "lines": 656,
       "signals": []
     },
-    "lib/reason-sandbox.js": {
-      "band": "structural",
-      "lines": 124,
-      "signals": [
-        "ISP:2"
-      ]
-    },
     "lib/receipt/public-trust-receipt.js": {
       "band": "recorded",
       "lines": 660,
