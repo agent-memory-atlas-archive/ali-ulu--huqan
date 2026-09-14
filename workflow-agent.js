@@ -164,23 +164,19 @@ function objectiveForGoal(goal) {
   return 'inspect';
 }
 
+// #2132: one preferred tool order per objective; a new objective is a row, not a case.
+const OBJECTIVE_SEQUENCES = Object.freeze(Object.assign(Object.create(null), {
+  learn: ['learn', 'verify', 'ask'],
+  compare: ['ask', 'compare', 'verify'],
+  reason: ['ask', 'reason', 'verify'],
+  discover: ['discoveryengine', 'experimentplanner', 'resultanalyzer', 'replicationchecker'],
+  verify: ['ask', 'verify', 'reason'],
+  plan: ['ask', 'reason', 'verify'],
+}));
+const DEFAULT_SEQUENCE = ['ask', 'verify', 'reason'];
+
 function preferredSequence(objective) {
-  switch (objective) {
-    case 'learn':
-      return ['learn', 'verify', 'ask'];
-    case 'compare':
-      return ['ask', 'compare', 'verify'];
-    case 'reason':
-      return ['ask', 'reason', 'verify'];
-    case 'discover':
-      return ['discoveryengine', 'experimentplanner', 'resultanalyzer', 'replicationchecker'];
-    case 'verify':
-      return ['ask', 'verify', 'reason'];
-    case 'plan':
-      return ['ask', 'reason', 'verify'];
-    default:
-      return ['ask', 'verify', 'reason'];
-  }
+  return [...(Object.hasOwn(OBJECTIVE_SEQUENCES, objective) ? OBJECTIVE_SEQUENCES[objective] : DEFAULT_SEQUENCE)];
 }
 
 function scoreTool(tool, goalText, objective, sequenceIndex) {

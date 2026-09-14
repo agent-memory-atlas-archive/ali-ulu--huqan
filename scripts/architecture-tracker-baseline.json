@@ -403,10 +403,8 @@
     },
     "workflow-agent.js": {
       "band": "decompose",
-      "lines": 941,
-      "signals": [
-        "OCP:6"
-      ]
+      "lines": 937,
+      "signals": []
     },
     "workflow-tools.js": {
       "band": "decompose",
