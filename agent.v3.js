@@ -1,8 +1,7 @@
 const crypto = require('crypto');
 const { createExecutionScope } = require('./lib/goal-binding');
-const path = require('path');
 const Agent = require('./agent');
-const HuqanStorage = require('./storage');
+const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
 const { evaluateAgentLoopBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-loop-budget-gate');
 const { emitGateTelemetry } = require('./lib/gate-telemetry');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
@@ -51,14 +50,6 @@ function createToolApprovalSeam(getStorage) {
   };
 }
 
-function defaultDbPath(kernel) {
-  const graphMemoryPath = kernel?.graph?.memoryPath;
-  if (typeof graphMemoryPath === 'string' && graphMemoryPath.endsWith('.json')) {
-    return graphMemoryPath.replace(/\.json$/, '.db');
-  }
-  return path.join(process.cwd(), 'memory.db');
-}
-
 class AgentV3 {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
@@ -70,10 +61,7 @@ class AgentV3 {
       maxSteps: opts.maxSteps || 4,
       storage: createToolApprovalSeam(() => this.storage),
     });
-    this.storage = opts.storage || new HuqanStorage({
-      kernel: this.kernel,
-      dbPath: opts.dbPath || defaultDbPath(this.kernel),
-    });
+    this.storage = opts.storage || createDefaultAgentV3Storage(this.kernel, opts);
     this.maxSteps = opts.maxSteps || this.baseAgent.maxSteps || 4;
     this.maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : 50;
     this.timeBudgetMs = Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : 30000;

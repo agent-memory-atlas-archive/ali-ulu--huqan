@@ -23,8 +23,8 @@ Tracked in total: **78**
 
 | File | Lines | Signals |
 |---|---:|---|
-| `agent.v3.js` | 790 | DIP |
 | `lib/external-action-gate-install.js` | 779 | — |
+| `agent.v3.js` | 778 | DIP |
 | `kernel.v2.js` | 771 | ISP:6 DIP |
 | `lib/observability/service.js` | 767 | — |
 | `lib/human-oversight-approval-runtime.js` | 744 | — |
