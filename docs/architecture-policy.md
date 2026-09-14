@@ -110,6 +110,7 @@ gate where it had a freeze.
 | Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 74 recorded entries |
 | Baseline review dates | yes | both baselines; an expired or missing entry fails the gate |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
+| Construction instead of injection (DIP) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new DIP signal fails the baseline evolution check; composition roots are exempt by path; a construction that is not a coupling defect is a dated exception in `DIP_ALLOWED` (1, #2268), and an expired or stale entry fails the gate |
 | Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 48 calls in 18 files |
 
 No row is marked "not yet" any more. Every rule here is checked by a script or

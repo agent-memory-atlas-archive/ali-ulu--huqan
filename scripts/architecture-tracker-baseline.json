@@ -344,13 +344,6 @@
         "OCP:6"
       ]
     },
-    "lib/self-healer/source-dependency-graph.js": {
-      "band": "structural",
-      "lines": 286,
-      "signals": [
-        "DIP"
-      ]
-    },
     "lib/storage/tool-approval-methods.js": {
       "band": "recorded",
       "lines": 424,
