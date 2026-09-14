@@ -56,7 +56,7 @@ function encodeJsonValue(value, state, depth, inArray = false) {
     return true;
   }
 
-  switch (typeof value) {
+  switch (typeof value) { // closed by the language: typeof has a fixed result set, so this stays a switch (#2179)
     case 'string':
       appendJsonChunk(state, JSON.stringify(value));
       return true;
