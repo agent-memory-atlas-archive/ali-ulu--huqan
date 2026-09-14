@@ -150,9 +150,7 @@
     "lib/dream-experiment-loop.js": {
       "band": "recorded",
       "lines": 533,
-      "signals": [
-        "ISP:1"
-      ]
+      "signals": []
     },
     "lib/external-action-gate-install.js": {
       "band": "recorded",
