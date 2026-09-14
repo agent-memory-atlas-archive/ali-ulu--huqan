@@ -8,8 +8,8 @@ const { describe, it } = require('node:test');
 // #2136 (#2122): the `durum` status command was the only user of two of the
 // modules cli.js requires (lib/system-status-report and lib/cli-plugin-status).
 // It moves to lib/cli-status-command.js unchanged, so cli.js requires one
-// module instead of two and its fan-out drops by one -- the room the next move
-// out of cli.js needs without raising the FANOUT ratchet.
+// module instead of two -- the room the company-ingest move out of cli.js
+// needed without raising the FANOUT ratchet.
 //
 // Its behaviour is already pinned to a digest recorded on main by
 // test/cli-command-dispatch.test.js, and kernel-cli-audit-baseline-contract
@@ -30,9 +30,11 @@ describe('the status command lives in lib/ (#2136)', () => {
     assert.doesNotMatch(source, /require\('\.\/lib\/cli-plugin-status'\)/);
   });
 
-  it('cli.js fan-out dropped by one', () => {
-    const row = require('../scripts/architecture-snapshot').snapshot().find((item) => item.file === 'cli.js');
-    assert.ok(row, 'cli.js is measured');
-    assert.equal(row.fanOut, 26, JSON.stringify(row));
+  it('the status module now carries both requires, so they moved rather than vanished', () => {
+    // The fan-out ratchet itself is enforced by scripts/architecture-snapshot.js; an exact
+    // count here would break on the next planned move out of cli.js.
+    const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'cli-status-command.js'), 'utf8');
+    assert.match(source, /require\('\.\/system-status-report'\)/);
+    assert.match(source, /require\('\.\/cli-plugin-status'\)/);
   });
 });

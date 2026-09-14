@@ -3,7 +3,7 @@
 
 Tracked in total: **73**
 
-## Decomposition owed, over 800 lines (8)
+## Decomposition owed, over 800 lines (7)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -14,9 +14,8 @@ Tracked in total: **73**
 | `workflow-tools.js` | 880 | — |
 | `lib/code-change-gate.js` | 834 | — |
 | `lib/sandbox-isolation.js` | 831 | — |
-| `cli.js` | 807 | FANOUT:26 |
 
-## Recorded debt, 401-800 lines (60)
+## Recorded debt, 401-800 lines (61)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -38,6 +37,7 @@ Tracked in total: **73**
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
 | `lib/provenance-query.js` | 656 | — |
 | `lib/receipt/receipt-read-index.js` | 640 | — |
+| `cli.js` | 637 | FANOUT:26 |
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 617 | ISP:6 |
 | `lib/github-app-streaming-trust.js` | 612 | — |
