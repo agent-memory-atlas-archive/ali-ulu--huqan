@@ -190,9 +190,7 @@
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",
       "lines": 477,
-      "signals": [
-        "OCP:14"
-      ]
+      "signals": []
     },
     "lib/human-oversight-approval-runtime.js": {
       "band": "recorded",
