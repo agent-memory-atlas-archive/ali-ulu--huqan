@@ -203,10 +203,8 @@
     },
     "lib/huqan-package-format.js": {
       "band": "recorded",
-      "lines": 430,
-      "signals": [
-        "OCP:8"
-      ]
+      "lines": 428,
+      "signals": []
     },
     "lib/hypothesis-review.js": {
       "band": "structural",
