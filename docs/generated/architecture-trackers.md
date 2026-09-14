@@ -33,7 +33,7 @@ Tracked in total: **80**
 | `lib/risk-classify.js` | 740 | OCP:13 |
 | `lib/tool-call-gate.js` | 731 | — |
 | `plugin.js` | 728 | — |
-| `dream.js` | 726 | ISP:1 |
+| `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |

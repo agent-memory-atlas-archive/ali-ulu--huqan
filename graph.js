@@ -657,7 +657,7 @@ class Graph {
 
   // ─── Node işlemleri ───────────────────────────────────────────────────────
 
-  _assignEmbedding(storageKey, embedding) {
+  assignEmbedding(storageKey, embedding) {
     this._mutationRollback?.recordNode(storageKey);
     this._nodes[storageKey].embedding = embedding;
   }

@@ -377,7 +377,7 @@ describe('Dream - Node2Vec Gömmeler', () => {
     d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
     const storageOrder = Object.keys(d.graph._nodes);
     const assignments = [];
-    d.graph._assignEmbedding = (storageKey, embedding) => {
+    d.graph.assignEmbedding = (storageKey, embedding) => {
       assignments.push({ storageKey, embedding });
     };
 

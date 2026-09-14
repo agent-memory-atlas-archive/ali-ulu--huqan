@@ -731,7 +731,7 @@ describe('Graph - Lifecycle and maintenance baseline contracts', { concurrency: 
       saveCalls += 1;
     };
 
-    graph._assignEmbedding(storageKeys[0], target);
+    graph.assignEmbedding(storageKeys[0], target);
 
     assert.strictEqual(graph._nodes[storageKeys[0]], targetNode);
     assert.strictEqual(graph._nodes[storageKeys[0]].embedding, target);
@@ -828,7 +828,7 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     graph.addNode('kedi', 'hayvan');
     const [storageKey] = Object.keys(graph._nodes);
     const vector = new Float64Array([0.5, 0.25, 0.125]);
-    graph._assignEmbedding(storageKey, vector);
+    graph.assignEmbedding(storageKey, vector);
 
     // Fail after stripEmbeddings() has already deleted the live copies.
     graph.writeStrippedState = () => { throw new Error('disk full'); };
@@ -844,7 +844,7 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
     graph.addNode('kedi', 'hayvan');
     const [storageKey] = Object.keys(graph._nodes);
-    graph._assignEmbedding(storageKey, new Float64Array([1, 2]));
+    graph.assignEmbedding(storageKey, new Float64Array([1, 2]));
 
     graph.save();
 
@@ -860,7 +860,7 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     graph.addNode('seed');
     graph.save();
     const before = fs.readFileSync(graph.memoryPath);
-    graph._assignEmbedding('seed', new Float64Array([2, 3]));
+    graph.assignEmbedding('seed', new Float64Array([2, 3]));
     graph.addNode('pending');
     const rename = fs.renameSync;
     fs.renameSync = (from, to) => {
@@ -884,7 +884,7 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     const graph = new Graph({ memoryPath, useSQLite: false });
     graph.addNode('kedi', 'hayvan');
     const [storageKey] = Object.keys(graph._nodes);
-    graph._assignEmbedding(storageKey, new Float64Array([9, 9]));
+    graph.assignEmbedding(storageKey, new Float64Array([9, 9]));
     graph.save();
 
     delete graph._nodes[storageKey].embedding;
@@ -903,7 +903,7 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     const graph = new Graph({ memoryPath, useSQLite: false, pruneThreshold: 0.9 });
     graph.addNode('kedi', 'hayvan');
     const [storageKey] = Object.keys(graph._nodes);
-    graph._assignEmbedding(storageKey, new Float64Array([9, 9]));
+    graph.assignEmbedding(storageKey, new Float64Array([9, 9]));
     graph.save();
     assert.deepStrictEqual(
       JSON.parse(fs.readFileSync(path.join(root, 'memory.embeddings.json'), 'utf-8')),
@@ -924,7 +924,7 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     const graph = new Graph({ memoryPath: path.join(root, 'memory.json'), useSQLite: false });
     graph.addNode('kedi', 'hayvan');
     const [storageKey] = Object.keys(graph._nodes);
-    graph._assignEmbedding(storageKey, new Float64Array([0.5, 0.25]));
+    graph.assignEmbedding(storageKey, new Float64Array([0.5, 0.25]));
 
     assert.throws(
       () => graph.runMutationOnce('op-369', () => { throw new Error('mutation blew up'); }),
@@ -945,8 +945,8 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     graph.addNode('kedi', 'hayvan');
     graph.addNode('köpek', 'hayvan');
     const keys = Object.keys(graph._nodes);
-    graph._assignEmbedding(keys[0], new Float64Array([1, 0]));
-    graph._assignEmbedding(keys[1], new Float64Array([1, 0]));
+    graph.assignEmbedding(keys[0], new Float64Array([1, 0]));
+    graph.assignEmbedding(keys[1], new Float64Array([1, 0]));
 
     const dream = new Dream({ graph });
     const before = dream.nodeSimilarity(keys[0], keys[1]);
