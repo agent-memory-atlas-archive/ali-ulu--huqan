@@ -93,3 +93,18 @@ test('collectFactTargets reports fact edges only, never type edges', () => {
     assert.ok(!factEvidence.includes('hayvan'), `fact evidence leaked a type edge: ${factEvidence}`);
   });
 });
+
+test('the negation module reaches v2 only through documented public methods (#2357)', () => {
+  withKernel((kernel) => {
+    const v2 = new KernelV2({ kernel });
+    for (const name of [
+      'normalizePredicateToken',
+      'isTypeRelation',
+      'collectFactTargets',
+      'buildDirectFactEvidence',
+      'buildDirectTypeEvidence',
+    ]) {
+      assert.strictEqual(typeof v2[name], 'function', `v2.${name} must be a public method`);
+    }
+  });
+});
