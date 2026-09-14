@@ -31,7 +31,10 @@ function npm(args, cwd) {
 }
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-external-conformance-'));
-if (!path.relative(REPO_ROOT, sandbox).startsWith('..')) {
+// On Windows a sandbox on another drive than the repository has an absolute
+// relative path (C:\...), which does not start with '..' but is not inside.
+const sandboxRelative = path.relative(REPO_ROOT, sandbox);
+if (sandboxRelative === '' || (!sandboxRelative.startsWith('..') && !path.isAbsolute(sandboxRelative))) {
   fail(`sandbox ${sandbox} is inside the repository; refusing to run`);
 }
 
