@@ -50,7 +50,11 @@ test.describe('V5-C5: the consumer only sees the published package', () => {
   });
 
   test('the runner refuses a sandbox inside the repository', () => {
-    assert.match(runnerSource, /path\.relative\(REPO_ROOT, sandbox\)\.startsWith\('\.\.'\)/);
+    assert.match(runnerSource, /const sandboxRelative = path\.relative\(REPO_ROOT, sandbox\);/);
+    assert.match(runnerSource, /!sandboxRelative\.startsWith\('\.\.'\)/);
+    // A sandbox on another drive (Windows CI: repo on D:, TEMP on C:) has an absolute
+    // relative path; without this guard the runner refused every such sandbox.
+    assert.match(runnerSource, /!path\.isAbsolute\(sandboxRelative\)/);
     assert.match(runnerSource, /refusing to run/);
   });
 

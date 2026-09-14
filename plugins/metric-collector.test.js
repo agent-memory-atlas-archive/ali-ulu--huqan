@@ -107,7 +107,10 @@ test('metric-collector: run() export defaults to a user-data gate-telemetry.json
   const repoRoot = path.join(__dirname, '..');
   const def = metricCollector._test.DEFAULT_OUTPUT_PATH;
   assert.ok(def.endsWith(path.join(path.sep, 'gate-telemetry.json')) || def.endsWith(path.join('gate-telemetry.json')));
-  assert.equal(path.relative(repoRoot, path.resolve(def)).startsWith('..'), true,
+  // A user-data path on another drive than the install (C: vs D: on Windows CI)
+  // has an absolute relative path, which is outside too.
+  const relative = path.relative(repoRoot, path.resolve(def));
+  assert.equal(relative.startsWith('..') || path.isAbsolute(relative), true,
     'default telemetry path must not live under the install dir');
 });
 
