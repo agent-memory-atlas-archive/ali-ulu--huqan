@@ -40,7 +40,7 @@
     "lib/external-client-replay-store.js": 510,
     "lib/external-client-trust-config.js": 448,
     "lib/github-app-streaming-trust.js": 612,
-    "lib/github-connector.js": 524,
+    "lib/github-connector.js": 518,
     "lib/http/route-auth-policy.js": 453,
     "lib/http/workflow-data-routes.js": 477,
     "lib/human-oversight-approval-runtime.js": 744,
