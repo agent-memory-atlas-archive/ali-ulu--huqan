@@ -21,7 +21,7 @@ test('rustGraph _onData resets and rejects pending requests instead of growing t
   const rg = makeFakeRustGraph();
   rg._start();
 
-  const pending = rg._send({ cmd: 'add_node', id: 'x' });
+  const pending = rg.send({ cmd: 'add_node', id: 'x' });
 
   // Simulate a malicious/buggy Rust process streaming a huge, newline-less
   // chunk. Without a size cap this._buf would grow without bound (OOM DoS).
@@ -41,7 +41,7 @@ test('rustGraph _onData keeps working normally after a buffer-overflow reset', a
 
   rg._onData(Buffer.alloc(11 * 1024 * 1024, 'a'));
 
-  const pending = rg._send({ cmd: 'add_node', id: 'y' });
+  const pending = rg.send({ cmd: 'add_node', id: 'y' });
   const [reqId] = rg._pending.keys();
   rg._onData(Buffer.from(JSON.stringify({ _reqId: reqId, ok: true }) + '\n'));
   const res = await pending;

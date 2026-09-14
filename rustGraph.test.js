@@ -361,7 +361,7 @@ describe('RustGraph - JS fallback (Rust binary yok)', { skip: hasRust }, () => {
       assert.strictEqual(Number(before.edges), 2);
 
       // Bir sonraki kenar, önceki çağrılarda eklenen düğümlere bağlı: fallback
-      // her _send()'te yeniden kurulursa Graph.addEdge null döner.
+      // her send()'te yeniden kurulursa Graph.addEdge null döner.
       assert.ok(
         await bridge.addEdge('entry.js', 'leaf.js', 'requires'),
         'candidate edge reddedilmemeli',

@@ -26,7 +26,7 @@ function fakeAxiomCoreFactory() {
       batches: [],
       learnBatchCalls: 0,
       _fallback: null,
-      async _send(cmd) {
+      async send(cmd) {
         assert.strictEqual(instance.destroyed, false, 'a destroyed sandbox backend was reused');
         instance.batches.push(cmd);
         const results = (cmd.commands || []).map((child) => {
@@ -41,7 +41,7 @@ function fakeAxiomCoreFactory() {
       async learnBatch(texts, opts = {}) {
         instance.learnBatchCalls += 1;
         const commands = texts.map(text => ({ cmd: 'learn', text, ...opts }));
-        return instance._send({ cmd: 'batch', commands });
+        return instance.send({ cmd: 'batch', commands });
       },
       destroy() { instance.destroyed = true; },
     };
@@ -90,7 +90,7 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
     let destroyed = false;
     const createRustGraph = () => ({
       _fallback: null,
-      _send: async () => ({ ok: true, results: [] }),
+      send: async () => ({ ok: true, results: [] }),
       learnBatch: async () => ({ ok: false, error: 'process_exited' }),
       destroy() { destroyed = true; },
     });
@@ -114,7 +114,7 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
       const instance = {
         destroyed: false,
         _fallback: null,
-        async _send() { return { ok: false, error: 'process_exited' }; },
+        async send() { return { ok: false, error: 'process_exited' }; },
         destroy() { instance.destroyed = true; },
       };
       instances.push(instance);
@@ -127,14 +127,14 @@ describe('reasonSandbox gets a request-scoped Rust graph (#758)', () => {
   });
 
   it('treats a backend that degraded into its JS fallback as unusable', async () => {
-    // RustGraph resolves _send with the fallback object itself when the binary
+    // RustGraph resolves send with the fallback object itself when the binary
     // is missing or the spawn failed. That object is a Graph, not a reply.
     let destroyed = false;
     const createRustGraph = () => {
       const fallback = { iAmAGraph: true };
       return {
         _fallback: fallback,
-        async _send() { return fallback; },
+        async send() { return fallback; },
         destroy() { destroyed = true; },
       };
     };
@@ -151,7 +151,7 @@ describe('Kernel#reasonSandbox never routes through the shared bridge (#758)', (
     let sharedSends = 0;
     let sharedDestroyed = false;
     kernel._rust = {
-      _send: async () => { sharedSends += 1; return { ok: true, results: [{ answer: 'leaked' }] }; },
+      send: async () => { sharedSends += 1; return { ok: true, results: [{ answer: 'leaked' }] }; },
       destroy: () => { sharedDestroyed = true; },
     };
 

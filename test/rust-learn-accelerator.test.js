@@ -23,7 +23,7 @@ test('Rust binary resolution rejects conflicting canonical and legacy values', (
 test('RustGraph.learnBatch sends all statements in one batch and preserves workspace', async () => {
   const graph = new RustGraph({ memoryPath: 'unused.json' });
   const calls = [];
-  graph._send = async (command) => {
+  graph.send = async (command) => {
     calls.push(command);
     return { ok: true, results: [{ ok: true }, { ok: true }] };
   };
@@ -47,7 +47,7 @@ test('RustGraph.learnBatch fails closed when the adapter has degraded to JS fall
   const graph = new RustGraph({ memoryPath: 'unused.json' });
   const fallback = {};
   graph._fallback = fallback;
-  graph._send = async () => fallback;
+  graph.send = async () => fallback;
 
   try {
     assert.deepEqual(await graph.learnBatch(['kedi hayvandir']), {
