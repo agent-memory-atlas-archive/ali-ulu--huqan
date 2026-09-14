@@ -27,7 +27,7 @@ describe('Persistence path derivation (#1025)', () => {
     assert.strictEqual(siblingPersistencePath('/a/b/mem.json', '.embeddings.json'), '/a/b/mem.embeddings.json');
     // Only the trailing extension is replaced, never one in a directory name.
     assert.strictEqual(siblingPersistencePath('/a.json/mem', '.db'), '/a.json/mem.db');
-    // Case-insensitive, matching what _jsonJournalPath() already did.
+    // Case-insensitive, matching what jsonJournalPath() already did.
     assert.strictEqual(siblingPersistencePath('mem.JSON', '.db'), 'mem.db');
   });
 
@@ -37,7 +37,7 @@ describe('Persistence path derivation (#1025)', () => {
 
     const graph = new Graph({ memoryPath, useSQLite: true });
     assert.notStrictEqual(graph._embeddingPath, graph.memoryPath);
-    assert.notStrictEqual(graph._jsonJournalPath(), graph.memoryPath);
+    assert.notStrictEqual(graph.jsonJournalPath(), graph.memoryPath);
     assert.strictEqual(graph._embeddingPath, `${memoryPath}.embeddings.json`);
 
     graph.addNode('a', 'A');
@@ -79,7 +79,7 @@ describe('Persistence path derivation (#1025)', () => {
 
     const graph = new Graph({ memoryPath, useSQLite: true });
     assert.strictEqual(graph._embeddingPath, path.join(dir, 'memory.embeddings.json'));
-    assert.strictEqual(graph._jsonJournalPath(), path.join(dir, 'memory.mutations.json'));
+    assert.strictEqual(graph.jsonJournalPath(), path.join(dir, 'memory.mutations.json'));
     graph.close();
 
     fs.rmSync(dir, { recursive: true, force: true });

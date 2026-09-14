@@ -61,7 +61,7 @@ function resolveRuntimePaths(opts = {}) {
   const sidecar = (suffix) => containedRuntimePath(`${dbPath}${suffix}`);
   // JSON-backend mutation journal (receipt chain + operation replay
   // authority). Derived from the same layout API the JSON backend writes
-  // with (graph.js _jsonJournalPath -> derivePersistenceLayout), so the
+  // with (graph.js jsonJournalPath -> derivePersistenceLayout), so the
   // backup file set cannot drift from the runtime layout; in SQLite mode
   // the journal lives in the database and this file is normally absent.
   // Appended last: restoreBackup addresses files[0]/[3]/[4]/[5] positionally.

@@ -830,8 +830,8 @@ describe('Graph - embedding survival across save failure and rollback (#369)', {
     const vector = new Float64Array([0.5, 0.25, 0.125]);
     graph._assignEmbedding(storageKey, vector);
 
-    // Fail after _stripEmbeddings() has already deleted the live copies.
-    graph._writeStrippedState = () => { throw new Error('disk full'); };
+    // Fail after stripEmbeddings() has already deleted the live copies.
+    graph.writeStrippedState = () => { throw new Error('disk full'); };
 
     assert.throws(() => graph.save(), /disk full/);
 

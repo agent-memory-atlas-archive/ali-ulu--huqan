@@ -69,7 +69,7 @@ for (const operationId of HOSTILE_IDS) {
     const { graph, memoryPath } = makeGraph();
     graph.runMutationOnce(operationId, () => ({ ok: true }));
 
-    const journalPath = graph._jsonJournalPath();
+    const journalPath = graph.jsonJournalPath();
     const persisted = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
     assert.ok(
       Object.prototype.hasOwnProperty.call(persisted.operations, operationId),

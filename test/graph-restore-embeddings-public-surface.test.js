@@ -50,8 +50,8 @@ describe('Graph.restoreEmbeddings is the public embedding-restore surface (#2349
     const stripped = { 'default::a': [4, 5, 6] };
     let restored = null;
     const graph = {
-      _stripEmbeddings: () => stripped,
-      _writeStrippedState: () => { throw new Error('disk failure after stripping'); },
+      stripEmbeddings: () => stripped,
+      writeStrippedState: () => { throw new Error('disk failure after stripping'); },
       restoreEmbeddings(vectors) { restored = vectors; },
     };
 
