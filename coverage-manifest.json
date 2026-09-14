@@ -28,7 +28,7 @@
       ],
       "sites": [
         {
-          "line": 22,
+          "line": 28,
           "capability": "egress",
           "call": "fetch"
         }
@@ -368,22 +368,22 @@
       ],
       "sites": [
         {
-          "line": 56,
+          "line": 57,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 60,
+          "line": 61,
           "capability": "fs_write",
           "call": "fs.renameSync"
         },
         {
-          "line": 64,
+          "line": 65,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         },
         {
-          "line": 66,
+          "line": 67,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
@@ -670,7 +670,7 @@
       ],
       "sites": [
         {
-          "line": 101,
+          "line": 105,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
@@ -685,12 +685,12 @@
       ],
       "sites": [
         {
-          "line": 106,
+          "line": 111,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         },
         {
-          "line": 157,
+          "line": 162,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
@@ -825,7 +825,7 @@
       ],
       "sites": [
         {
-          "line": 22,
+          "line": 28,
           "capability": "egress",
           "call": "fetch"
         }
