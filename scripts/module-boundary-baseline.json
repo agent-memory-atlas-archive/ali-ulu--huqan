@@ -36,16 +36,6 @@
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
-    "lib/graph-json-snapshot.js": {
-      "calls": 3,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
-    "lib/graph-json-transaction.js": {
-      "calls": 5,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
     "lib/hypothesis-review.js": {
       "calls": 1,
       "why": "Pre-existing debt recorded when the gate was introduced.",

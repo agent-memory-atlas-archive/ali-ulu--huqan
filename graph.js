@@ -441,10 +441,10 @@ class Graph {
    *                                     receiptHash, committedAt } },
    *     chainTips:  { [`${workspaceId}::${receiptFamily}`]: receiptHash },
    *     receiptsById: { [receiptId]: operationId } }
+   *
+   * Public journal-path surface for the JSON backend (#2343, #2353).
    */
-  _jsonJournalPath() {
-    return this._paths.journalPath;
-  }
+  jsonJournalPath() { return this._paths.journalPath; }
 
   _emptyJsonJournal() {
     return emptyMutationJournal();
@@ -455,11 +455,11 @@ class Graph {
    * absent journal yields empty history. See lib/mutation-journal.js.
    * Public read surface for the JSON journal (#2352).
    */
-  readJsonJournal() { return readMutationJournal(this._jsonJournalPath()); }
+  readJsonJournal() { return readMutationJournal(this.jsonJournalPath()); }
   _readJsonJournal() { return this.readJsonJournal(); }
 
   _writeJsonJournal(journal) {
-    atomicWriteFileSync(this._jsonJournalPath(), JSON.stringify(journal));
+    atomicWriteFileSync(this.jsonJournalPath(), JSON.stringify(journal));
   }
   _readMutationReceiptFromJsonJournal(journal, operationId) {
     return readMutationReceiptFromJsonJournal(journal, operationId);
@@ -560,7 +560,7 @@ class Graph {
    * unchanged) -- durability comes from the journal file being written with
    * atomicWriteFileSync() (never a torn write) rather than a SQL transaction.
    */
-  _runMutationOnceJson(id, mutate, opts) { return runSnapshotMutation(this, () => this._runMutationOnceJsonLocked(id, mutate, opts)); }
+  _runMutationOnceJson(id, mutate, opts) { return runSnapshotMutation(this, () => this._runMutationOnceJsonLocked(id, mutate, opts), this._jsonTransactionFault); }
   _runMutationOnceJsonLocked(id, mutate, opts) {
     const readStored = () => {
       const journal = this._readJsonJournal();
@@ -610,7 +610,7 @@ class Graph {
           const chainKey = `${payload.workspaceId}::${receiptFamily}`;
           // Re-checked here so a damaged tip is caught before it is linked
           // against, not after a broken chain has been written (#731).
-          const previousReceiptHash = assertChainTipUsable(journal.chainTips, chainKey, this._jsonJournalPath());
+          const previousReceiptHash = assertChainTipUsable(journal.chainTips, chainKey, this.jsonJournalPath());
           const chained = appendReceiptToChain(payload, previousReceiptHash);
           const committedAt = nowIso();
           journal.receipts[id] = {
@@ -633,7 +633,7 @@ class Graph {
       // and completed journal after-images. Restart recovery finishes that
       // exact record, so a prepared operation neither double-applies nor
       // produces a phantom completion.
-      commitJsonTransaction(this, id, journal);
+      commitJsonTransaction(this, id, journal, this._jsonTransactionFault);
       rememberSnapshot(this);
 
       // persisted: true tells the caller save() already happened as part of
@@ -965,7 +965,7 @@ class Graph {
 
   // ─── Kalıcılık ────────────────────────────────────────────────────────────
 
-  _stripEmbeddings() {
+  stripEmbeddings() {
     const embeddings = {};
     for (const [id, node] of Object.entries(this._nodes)) {
       if (node.embedding) {
@@ -992,12 +992,12 @@ class Graph {
 
   save() {
     assertGraphPersistenceWritable(this);
-    return this._db && this._stmts ? writeCurrentState(this) : saveSnapshot(this, () => writeCurrentState(this));
+    return this._db && this._stmts ? writeCurrentState(this) : saveSnapshot(this, () => writeCurrentState(this), this._jsonTransactionFault);
   }
 
   // Split out of save() purely so the restore above can live in a finally
   // without reindenting the entire write path.
-  _writeStrippedState(embeddings) {
+  writeStrippedState(embeddings) {
     if (this._db && this._stmts) {
       // SQLite: toplu yazma (transaction)
       const saveAll = this._db.transaction(() => {
