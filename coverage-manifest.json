@@ -12,8 +12,8 @@
     "byRole": {
       "enforcement": 26,
       "adapter_read": 6,
-      "persistence": 35,
       "operator_tool": 25,
+      "persistence": 35,
       "evidence": 16,
       "unguarded": 4
     }
@@ -119,41 +119,6 @@
           "line": 83,
           "capability": "egress",
           "call": "fetch"
-        }
-      ]
-    },
-    {
-      "file": "agent.js",
-      "role": "persistence",
-      "why": "writes agent checkpoints and run state so a run can resume; the path is the kernel persistence descriptor, not a request field",
-      "capabilities": [
-        "fs_write"
-      ],
-      "sites": [
-        {
-          "line": 125,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
-        },
-        {
-          "line": 153,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 155,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 156,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
-        },
-        {
-          "line": 159,
-          "capability": "fs_write",
-          "call": "fs.unlinkSync"
         }
       ]
     },
@@ -285,6 +250,41 @@
           "line": 93,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/agent-memory-runtime.js",
+      "role": "persistence",
+      "why": "writes agent memory (goals, runs, tool stats) through a temp file and rename so a run can resume, and moves a corrupt memory file aside; the path is the Agent constructor memoryPath or derived from the kernel graph memoryPath, never a request field",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 16,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 28,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 30,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 31,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 33,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
         }
       ]
     },
