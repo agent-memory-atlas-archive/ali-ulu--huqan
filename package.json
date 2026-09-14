@@ -165,6 +165,7 @@
     "lib/receipt/cryptographic-verification-adapter.js",
     "lib/receipt/public-trust-receipt.js",
     "lib/receipt/trusted-key-resolver.js",
+    "lib/runtime-watchdog-audit.js",
     "lib/adversarial-signals.js",
     "lib/agent-loop-budget-gate.js",
     "lib/agent-memory-persistence.js",

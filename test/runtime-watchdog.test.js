@@ -12,6 +12,7 @@ const {
   createRuntimeWatchdog,
   readAndVerifyAudit,
 } = require('../lib/runtime-watchdog');
+const auditApi = require('../lib/runtime-watchdog-audit');
 const { bindHumanApprovalConsole } = require('../scripts/huqan-watchdog');
 
 function fixture() {
@@ -42,6 +43,11 @@ function fixture() {
 function records(auditPath) {
   return fs.readFileSync(auditPath, 'utf8').trim().split(/\r?\n/).map(JSON.parse);
 }
+
+test('runtime watchdog keeps the audit API as a stable public facade', () => {
+  assert.strictEqual(createAuditJournal, auditApi.createAuditJournal);
+  assert.strictEqual(readAndVerifyAudit, auditApi.readAndVerifyAudit);
+});
 
 test('unexpected HUQAN termination is durable, chained, and fail-closed', () => {
   const f = fixture();
