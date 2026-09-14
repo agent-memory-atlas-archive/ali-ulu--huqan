@@ -91,6 +91,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'lib/cli-mutation-audit.js': { why: 'audit family, CLI surface', sinks: { appendAuditEvent: 1 } },
   'graph.js': { why: 'graph optimize and consolidate maintenance audits; DELETE evidence is emitted by the Graph persistence owner until the family-independent admission seam covers maintenance operations', sinks: { appendAuditEvent: 2 } },
   'lib/external-action-receipt.js': { why: 'audit family; the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
+  'lib/hypothesis-review.js': { why: 'audit family, human review verdict; the append previously hid behind kernel._appendAuditEvent (no dot-call, invisible to this scan) and #2345 made it a direct graph.appendAuditEvent so the ratchet sees it; routed when the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -228,9 +229,17 @@ const ROUTED_SINK_CALLS = Object.freeze({
   },
 });
 
-/** Every file permitted to contain a sink call, in either state. */
+/** Every file permitted to contain a sink call, in either state. A file may
+ * appear in both ledgers when its calls genuinely split: one routed through
+ * admission, one still direct. The two entries are merged, so both counts
+ * stay pinned and neither ledger can lend the other slack. */
 function ledgerFor(relPath) {
-  return UNROUTED_SINK_CALLS[relPath] || ROUTED_SINK_CALLS[relPath] || null;
+  const unrouted = UNROUTED_SINK_CALLS[relPath];
+  const routed = ROUTED_SINK_CALLS[relPath];
+  if (unrouted && routed) {
+    return { why: `${unrouted.why} / ${routed.why}`, sinks: { ...routed.sinks, ...unrouted.sinks } };
+  }
+  return unrouted || routed || null;
 }
 
 function countSinks(source) {
@@ -391,7 +400,14 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // PR #1765: the external action guard adds one ledgered audit append
   // (lib/external-action-receipt.js projects receipts into the graph
   // append-only audit_log beside its crash-safe JSONL trail).
-  assert.equal(unrouted, 25, 'unrouted sink calls');
+  // #2346-adjacent: #2345 moved the hypothesis-review verdict audit from
+  // behind kernel._appendAuditEvent (which this scan cannot see -- no
+  // dot-call) to a direct graph.appendAuditEvent. The total rises from 54
+  // to 55 for the only reason it legitimately can besides a deletion or a
+  // routed unit-of-work event: a previously invisible bypass became visible.
+  // The boundary is stronger for it, and the new call is ledgered above
+  // until the family-independent admission seam covers audit events.
+  assert.equal(unrouted, 26, 'unrouted sink calls');
   assert.equal(routed, 29, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis surface)');
-  assert.equal(unrouted + routed, 54, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, and the external-action receipt projection');
+  assert.equal(unrouted + routed, 55, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, and the newly visible hypothesis-review verdict audit');
 });

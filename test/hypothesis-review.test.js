@@ -257,6 +257,25 @@ test('review appends a CLAIM_ACCEPTED / CLAIM_REJECTED audit event', async () =>
   }
 });
 
+test('review records its audit event without the private kernel seam (#2345)', async () => {
+  const managed = createCli('review-no-private-seam');
+  try {
+    const seeded = seedCriticalCandidate(managed.kernel);
+    managed.kernel._appendAuditEvent = undefined;
+    const result = reviewHypothesisCandidate(managed.kernel, {
+      candidateId: seeded.candidateId, decision: 'accept', reviewer: 'ali',
+    });
+    assert.equal(result.status, 'accepted');
+    const events = managed.kernel.graph.getAuditEvents({ workspaceId: 'default' })
+      .filter(event => event.targetId === seeded.candidateId);
+    const event = events.find(item => item.eventType === 'CLAIM_ACCEPTED');
+    assert.ok(event, 'the accept verdict left no CLAIM_ACCEPTED trail without the private seam');
+    assert.equal(event.details.reviewedBy, 'ali');
+  } finally {
+    closeCli(managed);
+  }
+});
+
 test('hypotheses review is reachable from the CLI and emits a JSON workflow envelope', async () => {
   const managed = createCli('review-cli');
   try {

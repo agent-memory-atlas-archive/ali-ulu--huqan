@@ -315,7 +315,7 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   );
   assert.ok(unroutedLedger.length > 0);
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
-  assert.match(ledger, /assert\.equal\(unrouted, 25,/);
+  assert.match(ledger, /assert\.equal\(unrouted, 26,/);
   // K2 (#328): a later routing step delegated the background edge commit to
   // lib/background-provenance.js as a *new* ledgered entry -- routed rose
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
@@ -326,9 +326,15 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // PR #1765 then added one ledgered audit append in
   // lib/external-action-receipt.js (external-action receipt projection),
   // producing 30/54.
+  // #2345 then made the hypothesis-review verdict audit visible: it used to
+  // hide behind kernel._appendAuditEvent (no dot-call, so the scan never saw
+  // it) and is now a direct graph.appendAuditEvent, ledgered unrouted until
+  // the family-independent admission seam covers audit events -- producing
+  // unrouted 26, routed 29, total 55. A bypass became visible, which is the
+  // opposite of a deletion and the opposite of slack.
   // This is the opposite of a deletion, which is exactly why this test pins
   // the routed and total numbers and not the difference between them: each
   // shape has its own finding.
   assert.match(ledger, /assert\.equal\(routed, 29,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 54,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 55,/);
 });

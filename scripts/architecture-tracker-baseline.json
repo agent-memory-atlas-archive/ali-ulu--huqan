@@ -217,13 +217,6 @@
         "OCP:8"
       ]
     },
-    "lib/hypothesis-review.js": {
-      "band": "structural",
-      "lines": 145,
-      "signals": [
-        "ISP:1"
-      ]
-    },
     "lib/ingest.js": {
       "band": "recorded",
       "lines": 587,
