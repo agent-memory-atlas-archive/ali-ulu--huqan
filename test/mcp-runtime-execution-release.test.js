@@ -236,3 +236,19 @@ test('dangerous agent call cannot be executed through approval revalidation', { 
     }
   });
 });
+
+test('approval store construction accepts an injected factory (#2351)', () => {
+  const seen = [];
+  const fake = { iAmTheStore: true };
+  const store = createApprovalStoreFromKernel({ marker: 'kernel' }, {
+    dbPath: 'custom.db',
+    createStorage: (storageOpts) => {
+      seen.push(storageOpts);
+      assert.equal(storageOpts.kernel.marker, 'kernel');
+      assert.equal(storageOpts.dbPath, 'custom.db');
+      return fake;
+    },
+  });
+  assert.strictEqual(store, fake);
+  assert.strictEqual(seen.length, 1);
+});

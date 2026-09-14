@@ -258,13 +258,6 @@
       "lines": 408,
       "signals": []
     },
-    "lib/mcp-approval-store.js": {
-      "band": "structural",
-      "lines": 123,
-      "signals": [
-        "DIP"
-      ]
-    },
     "lib/mcp-gate-adapter.js": {
       "band": "recorded",
       "lines": 612,
