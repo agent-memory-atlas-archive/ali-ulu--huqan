@@ -104,13 +104,6 @@
       "lines": 555,
       "signals": []
     },
-    "lib/cli-helpers.js": {
-      "band": "structural",
-      "lines": 139,
-      "signals": [
-        "OCP:12"
-      ]
-    },
     "lib/cli-workflow-adapter.js": {
       "band": "structural",
       "lines": 269,
