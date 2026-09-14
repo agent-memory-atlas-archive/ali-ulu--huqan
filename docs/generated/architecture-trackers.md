@@ -3,7 +3,7 @@
 
 Tracked in total: **73**
 
-## Decomposition owed, over 800 lines (8)
+## Decomposition owed, over 800 lines (7)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -14,9 +14,8 @@ Tracked in total: **73**
 | `workflow-tools.js` | 880 | — |
 | `lib/code-change-gate.js` | 834 | — |
 | `lib/sandbox-isolation.js` | 831 | — |
-| `cli.js` | 807 | FANOUT:26 |
 
-## Recorded debt, 401-800 lines (60)
+## Recorded debt, 401-800 lines (61)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -35,6 +34,7 @@ Tracked in total: **73**
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
+| `cli.js` | 660 | FANOUT:27 |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
 | `lib/provenance-query.js` | 656 | — |
 | `lib/receipt/receipt-read-index.js` | 640 | — |
