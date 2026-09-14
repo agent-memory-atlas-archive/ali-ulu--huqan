@@ -264,6 +264,7 @@ test('workflow runs the PR and nightly platform matrix with explicit Windows she
   assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
   assert.match(job, /node-version: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
   assert.match(job, /\[22, 24\]/);
+  assert.match(job, /max-parallel: 2/);
   assert.match(job, /shell: bash/);
   assert.match(job, /TEST_RESULT: \$\{\{ needs\['runtime-test'\]\.result \}\}/);
   assert.match(job, /test-timings-\$\{\{ matrix\.os \}\}-node-\$\{\{ matrix\.node-version \}\}-shard-\$\{\{ matrix\.shard \}\}-attempt-\$\{\{ github\.run_attempt \}\}/);
