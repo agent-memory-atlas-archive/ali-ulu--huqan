@@ -1,7 +1,7 @@
 const Dream = require('./dream');
 const { INTERNAL_TOOLS, evaluateToolPolicy } = require('./toolPolicy');
 const { mcpToolPolicy } = require('./lib/mcp-tool-policy');
-const { createStepRuntime, renderReport } = require('./lib/agent-step-runtime');
+const { renderRunReport } = require('./lib/agent-report-renderer');
 const { normalizeSummaryText, normalizeMemoryPath } = require('./lib/agent-memory-state');
 const { extractAgentSummary, buildRunRecommendations, suggestNextAction, chooseFollowUp } = require('./lib/agent-run-guidance');
 const { noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memory-persistence');
@@ -75,7 +75,10 @@ class Agent {
     return curr === prev;
   }
   plan(goal, opts = {}) {
-    return buildAgentPlan(this, goal, opts);
+    return buildAgentPlan({ goal, opts, runtime: {
+      agent: this, memory: this.memory, maxSteps: this.maxSteps, goalKey: this._goalKey.bind(this), findResumeRun: this._findResumeRun.bind(this), emit: this._emit.bind(this), rememberPlan: this._rememberPlan.bind(this), ok: this.ok.bind(this),
+      setLastPlan: plan => { this.lastPlan = plan; }, setActiveGoal: activeGoal => { this.activeGoal = activeGoal; },
+    } });
   }
 
   _extractAgentSummary(result) {
@@ -163,11 +166,15 @@ class Agent {
   }
 
   stepRuntime() {
-    return createStepRuntime(this);
+    return {
+      emit: (event, data) => this._emit(event, data), executeStepWithRetry: (step, state, opts) => this._executeStepWithRetry(step, state, opts), collectEvidence: items => this._collectEvidence(items), updateToolStats: (tool, status) => this._updateToolStats(tool, status),
+      extractAgentSummary: result => this._extractAgentSummary(result), isStalledProgress: (previous, current) => this._isStalledProgress(previous, current), chooseFollowUp: (step, summary, state) => this._chooseFollowUp(step, summary, state), stepSignature: (step, state) => this._stepSignature(step, state), findRecentFailure: signature => this._findRecentFailure(signature),
+      buildRunRecommendations: state => this._buildRunRecommendations(state), suggestNextAction: state => this._suggestNextAction(state), renderReport: state => this._renderReport(state),
+    };
   }
 
   _renderReport(state) {
-    return renderReport(this, state);
+    return renderRunReport(state, { recommendations: this._buildRunRecommendations(state), nextAction: state.nextAction || this._suggestNextAction(state) });
   }
 }
 

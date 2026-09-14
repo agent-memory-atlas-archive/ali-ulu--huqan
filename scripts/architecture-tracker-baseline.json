@@ -1,11 +1,6 @@
 {
   "schemaVersion": 2,
   "entries": {
-    "agent.js": {
-      "band": "recorded",
-      "lines": 726,
-      "signals": []
-    },
     "agent.v3.js": {
       "band": "recorded",
       "lines": 778,
