@@ -95,5 +95,4 @@ Tracked in total: **80**
 | `lib/cli-workflow-adapter.js` | 269 | ISP:3 |
 | `lib/hypothesis-review.js` | 145 | ISP:1 |
 | `lib/cli-helpers.js` | 139 | OCP:12 |
-| `lib/mcp-approval-store.js` | 123 | DIP |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |
