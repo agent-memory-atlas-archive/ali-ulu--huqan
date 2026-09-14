@@ -173,6 +173,8 @@
     "lib/kernel-learn-admission.js",
     "lib/agent-run-finalization.js",
     "lib/agent-memory-state.js",
+    "lib/agent-memory-records.js",
+    "lib/agent-planning-policy.js",
     "lib/multi-agent-cascade-guard.js",
     "lib/agent-run-guidance.js",
     "lib/observability/kernel-sink.js",
