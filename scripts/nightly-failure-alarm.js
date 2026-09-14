@@ -27,7 +27,7 @@ const path = require('node:path');
 // else is keyed on the file itself -- see alarmTitleForFile.
 const ALARM_TITLE = 'Nightly full-suite run is red';
 const UNREADABLE_TITLE = 'Nightly red: a shard sidecar could not be read';
-const SIDECAR_PATTERN = /^test-shard-(\d+)-failures\.json$/;
+const SIDECAR_PATTERN = /(?:^|-)shard-(\d+)-failures\.json$/;
 
 /**
  * Read every shard sidecar under `dir` and return one flat, shard-ordered list.

@@ -58,6 +58,11 @@ function findBrowser() {
 }
 
 function browserSmokeSkipReason() {
+  // An explicit opt-out for a CI runner where browser smokes are not a trusted
+  // signal (#2450: the windows-latest runner renders empty panels that pass on a
+  // local Windows machine). Its value is the reason, so the skip says why.
+  const optOut = String(process.env.HUQAN_SKIP_BROWSER_SMOKE || '').trim();
+  if (optOut && optOut !== '0') return `browser smoke skipped by HUQAN_SKIP_BROWSER_SMOKE: ${optOut}`;
   if (typeof WebSocket !== 'function') return 'global WebSocket is unavailable (needs Node >= 22)';
   if (!findBrowser()) return 'no Chromium-family browser found (set HUQAN_CHROME)';
   return null;

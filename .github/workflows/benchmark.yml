@@ -337,10 +337,10 @@ jobs:
   # select the complete discovered test-file set.
   # ---------------------------------------------------------------------
   runtime-test:
-    name: npm test (runtime/test selected, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
+    name: npm test (runtime/test selected, ${{ matrix.os }}, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
     needs: [classify, test-impact-plan]
     if: needs['test-impact-plan'].outputs.run_tests == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     # A shard finishes in two to four minutes. Without a cap it inherits the
     # six-hour default, and a shard that hangs — the browser smokes in shard 2
     # have twice now — leaves the pull request reporting "pending" for the rest
@@ -348,11 +348,19 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
+      # The impact plan is one uploaded artifact shared by every shard. Keep
+      # concurrent downloads while still exercising both PR platforms in this
+      # run; the artifact service can reject bursts with transient 403s.
+      max-parallel: 2
       matrix:
-        # Node 20 reached end-of-life on 2026-04-30 and the package declares
-        # engines >=22.13.0, so there is one supported runtime leg.
-        node-version: [22]
+        # PRs exercise the supported Node 22 package on Linux and Windows.
+        # Scheduled/manual runs also cover macOS and the current Node 24 line.
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[22]' || '[22, 24]') }}
         shard: [1, 2, 3, 4, 5]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -402,19 +410,23 @@ jobs:
           --shard=${{ matrix.shard }}
           --total=5
           --concurrency=1
-          --report=artifacts/test-shard-${{ matrix.shard }}.xml
+          --report=artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}.xml
         env:
           # A browser smoke that skips silently is not evidence; the runner
           # image is expected to provide Chrome and global WebSocket support.
           # Shards provide process-level CI parallelism. Keep each shard serial
           # because legacy JSON tests share default persistence within a runner.
-          HUQAN_REQUIRE_BROWSER_SMOKE: '1'
+          # windows-latest: browser smokes are not required. The runner renders
+          # empty panels for smokes that pass on a local Windows machine, so a red
+          # there says nothing about the product. Linux and macOS still require them.
+          HUQAN_REQUIRE_BROWSER_SMOKE: ${{ matrix.os == 'windows-latest' && '0' || '1' }}
+          HUQAN_SKIP_BROWSER_SMOKE: ${{ matrix.os == 'windows-latest' && 'not required on the windows-latest runner (#2450)' || '' }}
       - name: Upload JUnit timing report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-timings-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
-          path: artifacts/test-shard-${{ matrix.shard }}.xml
+          name: test-timings-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}.xml
           if-no-files-found: warn
       # The alarm reads this, not the JUnit report above. That report is merged
       # from <testsuite> blocks, so a file declaring only top-level `test(...)`
@@ -425,8 +437,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: shard-failures-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
-          path: artifacts/test-shard-${{ matrix.shard }}-failures.json
+          name: shard-failures-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-failures.json
           if-no-files-found: warn
 
   runtime-test-skip:

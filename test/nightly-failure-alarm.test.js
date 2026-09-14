@@ -33,13 +33,13 @@ function scratch() {
 // would have announced a green suite for a red run.
 test('failed files are collected from every shard sidecar, not from JUnit', () => {
   const dir = scratch();
-  fs.writeFileSync(path.join(dir, 'test-shard-1-failures.json'), JSON.stringify({
+  fs.writeFileSync(path.join(dir, 'test-ubuntu-latest-node-22-shard-1-failures.json'), JSON.stringify({
     shard: 1, total: 5, failedFiles: [{ file: 'test/a.test.js', status: 1 }],
   }));
-  fs.writeFileSync(path.join(dir, 'test-shard-4-failures.json'), JSON.stringify({
+  fs.writeFileSync(path.join(dir, 'test-windows-latest-node-22-shard-4-failures.json'), JSON.stringify({
     shard: 4, total: 5, failedFiles: [{ file: 'test/b.test.js', status: 1 }],
   }));
-  fs.writeFileSync(path.join(dir, 'test-shard-2-failures.json'), JSON.stringify({
+  fs.writeFileSync(path.join(dir, 'test-macos-latest-node-24-shard-2-failures.json'), JSON.stringify({
     shard: 2, total: 5, failedFiles: [],
   }));
 
@@ -51,9 +51,24 @@ test('failed files are collected from every shard sidecar, not from JUnit', () =
   ]);
 });
 
+test('platform sidecars with the same shard number are collected without a collision', () => {
+  const dir = scratch();
+  fs.writeFileSync(path.join(dir, 'test-ubuntu-latest-node-22-shard-1-failures.json'), JSON.stringify({
+    shard: 1, total: 5, failedFiles: [{ file: 'test/linux-only.test.js', status: 1 }],
+  }));
+  fs.writeFileSync(path.join(dir, 'test-windows-latest-node-22-shard-1-failures.json'), JSON.stringify({
+    shard: 1, total: 5, failedFiles: [{ file: 'test/windows-only.test.js', status: 1 }],
+  }));
+
+  assert.deepEqual(collectFailedFiles(dir), [
+    { shard: 1, file: 'test/linux-only.test.js', status: 1 },
+    { shard: 1, file: 'test/windows-only.test.js', status: 1 },
+  ]);
+});
+
 test('a shard that produced no sidecar is reported, never silently dropped', () => {
   const dir = scratch();
-  fs.writeFileSync(path.join(dir, 'test-shard-3-failures.json'), '{ this is not json');
+  fs.writeFileSync(path.join(dir, 'test-windows-latest-node-24-shard-3-failures.json'), '{ this is not json');
 
   const collected = collectFailedFiles(dir);
 
@@ -237,4 +252,21 @@ test('every shard uploads its failure sidecar even when the shard fails', () => 
   assert.ok(upload.startsWith('      - name: Upload shard failure sidecar'), 'sidecar upload step must exist');
   // A shard that fails is exactly the shard whose sidecar the alarm needs.
   assert.match(upload.slice(0, 400), /if:\s*always\(\)/);
+  assert.match(upload.slice(0, 700), /matrix\.os/);
+  assert.match(upload.slice(0, 700), /matrix\.node-version/);
+});
+
+test('workflow runs the PR and nightly platform matrix with explicit Windows shell', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml'), 'utf8');
+  const job = workflow.slice(workflow.indexOf('  runtime-test:'));
+  assert.match(job, /os: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
+  assert.match(job, /\["ubuntu-latest", "windows-latest"\]/);
+  assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
+  assert.match(job, /node-version: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
+  assert.match(job, /\[22, 24\]/);
+  assert.match(job, /max-parallel: 2/);
+  assert.match(job, /shell: bash/);
+  assert.match(job, /TEST_RESULT: \$\{\{ needs\['runtime-test'\]\.result \}\}/);
+  assert.match(job, /test-timings-\$\{\{ matrix\.os \}\}-node-\$\{\{ matrix\.node-version \}\}-shard-\$\{\{ matrix\.shard \}\}-attempt-\$\{\{ github\.run_attempt \}\}/);
+  assert.match(job, /shard-failures-\$\{\{ matrix\.os \}\}-node-\$\{\{ matrix\.node-version \}\}-shard-\$\{\{ matrix\.shard \}\}-attempt-\$\{\{ github\.run_attempt \}\}/);
 });

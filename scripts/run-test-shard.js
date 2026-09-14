@@ -62,7 +62,8 @@ function defaultReportPath(shard) {
  * uploaded a report saying failures="0". The nightly alarm reads this sidecar.
  */
 function failuresSidecarPath(reportPath, shard) {
-  return path.join(path.dirname(reportPath), `test-shard-${shard}-failures.json`);
+  const stem = path.basename(reportPath, path.extname(reportPath));
+  return path.join(path.dirname(reportPath), `${stem}-failures.json`);
 }
 
 function loadSelection(selectionPath, knownFiles) {
