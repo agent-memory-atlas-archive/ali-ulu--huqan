@@ -109,6 +109,10 @@ const CLASSIFIED = Object.freeze({
     role: 'evidence',
     why: 'appends the fitness history series under the resolved state directory; append-only, never rewritten',
   }),
+  'lib/runtime-watchdog-audit.js': Object.freeze({
+    role: 'evidence',
+    why: 'writes and verifies the append-only hash-chained watchdog audit journal at an operator-configured absolute path',
+  }),
 
   // ── the product datastore ──────────────────────────────────────────────
   'lib/graph-json-snapshot.js': Object.freeze({ role: 'persistence', why: 'writes the JSON graph snapshot to the configured memoryPath; the non-SQLite backend for the canonical graph' }),
@@ -177,7 +181,7 @@ const CLASSIFIED = Object.freeze({
   }),
   'lib/runtime-watchdog.js': Object.freeze({
     role: 'unguarded',
-    why: 'starts the server it supervises, writes its own hash-chained audit journal and fetches its health URL on a heartbeat. The spawn and the health target default to the local server and both are injectable, but none of the three actions passes a gate',
+    why: 'starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate',
   }),
   'lib/pr-guardian/github-client.js': Object.freeze({
     role: 'unguarded',
