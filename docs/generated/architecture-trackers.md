@@ -34,10 +34,10 @@ Tracked in total: **73**
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
 | `plugins/company-brain.js` | 678 | — |
-| `cli.js` | 660 | FANOUT:27 |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
 | `lib/provenance-query.js` | 656 | — |
 | `lib/receipt/receipt-read-index.js` | 640 | — |
+| `cli.js` | 637 | FANOUT:26 |
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 617 | ISP:6 |
 | `lib/github-app-streaming-trust.js` | 612 | — |

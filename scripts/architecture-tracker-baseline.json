@@ -19,8 +19,8 @@
       "signals": []
     },
     "cli.js": {
-      "band": "decompose",
-      "lines": 807,
+      "band": "recorded",
+      "lines": 637,
       "signals": [
         "FANOUT:26"
       ]
