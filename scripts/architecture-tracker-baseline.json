@@ -168,10 +168,9 @@
     },
     "lib/github-connector.js": {
       "band": "recorded",
-      "lines": 524,
+      "lines": 518,
       "signals": [
-        "ISP:1",
-        "OCP:6"
+        "ISP:1"
       ]
     },
     "lib/http/route-auth-policy.js": {
