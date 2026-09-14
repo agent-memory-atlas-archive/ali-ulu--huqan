@@ -398,8 +398,8 @@
       "signals": []
     },
     "workflow-agent.js": {
-      "band": "decompose",
-      "lines": 937,
+      "band": "recorded",
+      "lines": 562,
       "signals": []
     },
     "workflow-tools.js": {
