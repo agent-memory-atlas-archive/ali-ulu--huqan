@@ -29,7 +29,7 @@ function fakeKernel({ durable = true, edgeDecision = 'allow' } = {}) {
         return normalized;
       },
     },
-    _commitBackgroundEdge(from, to, relation, source, opts) {
+    commitBackgroundEdge(from, to, relation, source, opts) {
       const result = {
         decision: edgeDecision,
         edge: edgeDecision === 'allow' ? { from, to, relation, source, workspaceId: opts.workspaceId } : null,

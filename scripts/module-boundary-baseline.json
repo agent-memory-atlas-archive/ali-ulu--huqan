@@ -26,11 +26,6 @@
       "why": "Pre-existing debt recorded when the gate was introduced.",
       "review_by": "2026-12-31"
     },
-    "lib/dream-experiment-loop.js": {
-      "calls": 1,
-      "why": "Pre-existing debt recorded when the gate was introduced.",
-      "review_by": "2026-12-31"
-    },
     "lib/github-connector.js": {
       "calls": 1,
       "why": "Pre-existing debt recorded when the gate was introduced.",

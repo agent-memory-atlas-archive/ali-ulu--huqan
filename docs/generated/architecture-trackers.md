@@ -53,7 +53,7 @@ Tracked in total: **80**
 | `lib/memory-schema.js` | 568 | — |
 | `lib/causal/causal-verdict.js` | 555 | — |
 | `lib/automation-safety-gate/automation-operation-classifier.js` | 545 | — |
-| `lib/dream-experiment-loop.js` | 533 | ISP:1 |
+| `lib/dream-experiment-loop.js` | 533 | — |
 | `lib/contradiction-rules.js` | 531 | — |
 | `lib/mcp-tool-catalog.js` | 531 | — |
 | `sandboxRunner.js` | 530 | OCP:8 |
