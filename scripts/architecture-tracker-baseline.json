@@ -25,9 +25,9 @@
     },
     "cli.js": {
       "band": "decompose",
-      "lines": 815,
+      "lines": 807,
       "signals": [
-        "FANOUT:27"
+        "FANOUT:26"
       ]
     },
     "dream.js": {
