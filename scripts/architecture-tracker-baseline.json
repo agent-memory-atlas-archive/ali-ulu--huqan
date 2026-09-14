@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "entries": {
     "agent.js": {
-      "band": "decompose",
-      "lines": 931,
+      "band": "recorded",
+      "lines": 726,
       "signals": []
     },
     "agent.v3.js": {

@@ -3,7 +3,7 @@
 
 Tracked in total: **74**
 
-## Decomposition owed, over 800 lines (9)
+## Decomposition owed, over 800 lines (8)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -11,13 +11,12 @@ Tracked in total: **74**
 | `kernel.js` | 1073 | ISP:1 DIP FANOUT:39 |
 | `server.js` | 1017 | FANOUT:52 |
 | `lib/memory-store.js` | 968 | FANOUT:23 |
-| `agent.js` | 931 | — |
 | `workflow-tools.js` | 880 | — |
 | `lib/code-change-gate.js` | 834 | — |
 | `lib/sandbox-isolation.js` | 831 | — |
 | `cli.js` | 815 | FANOUT:27 |
 
-## Recorded debt, 401-800 lines (60)
+## Recorded debt, 401-800 lines (61)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -32,6 +31,7 @@ Tracked in total: **74**
 | `lib/risk-classify.js` | 739 | — |
 | `lib/tool-call-gate.js` | 731 | — |
 | `plugin.js` | 728 | — |
+| `agent.js` | 726 | — |
 | `dream.js` | 726 | — |
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/a2a/bounded-exchange.js` | 693 | — |

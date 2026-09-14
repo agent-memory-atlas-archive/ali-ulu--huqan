@@ -16,7 +16,6 @@ const {
   cloneValue,
   nowIso,
   normalizeGoal,
-  lower,
   firstWords,
   stripQuestionMarks,
   normalizeSummaryText,
@@ -25,13 +24,10 @@ const {
 } = require('./lib/agent-memory-state');
 const { extractAgentSummary, buildRunRecommendations, suggestNextAction, chooseFollowUp } = require('./lib/agent-run-guidance');
 const { noteMemoryFailure, resetMemoryPersistence, runEnvelopeMeta } = require('./lib/agent-memory-persistence');
+const { normalizeMemory, goalKey, findGoalRecord, findResumeRun, updateToolStats, updateObjectiveStats, pruneMemory, findRecentFailure } = require('./lib/agent-memory-records');
+const { planningPolicy, objectiveForGoal, planSteps } = require('./lib/agent-planning-policy');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
-const MEMORY_LIMITS = {
-  plans: 24,
-  runs: 32,
-  goals: 64,
-};
 // #2130: one handler per internal tool; a new tool is a row, not a case.
 const INTERNAL_TOOL_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
   learn: (agent, step, state, opts) => agent.kernel.learn(step.input, opts.learnOpts || {}),
@@ -128,22 +124,7 @@ class Agent {
       throw corruptError;
     }
   }
-  _normalizeMemory(memory = {}) {
-    const base = defaultMemoryState();
-    const normalized = {
-      ...base,
-      ...memory,
-      plans: Array.isArray(memory.plans) ? memory.plans : [],
-      runs: Array.isArray(memory.runs) ? memory.runs : [],
-      goals: Array.isArray(memory.goals) ? memory.goals : [],
-      failures: Array.isArray(memory.failures) ? memory.failures : [],
-      stats: {
-        tools: memory.stats && typeof memory.stats.tools === 'object' && memory.stats.tools ? memory.stats.tools : {},
-        objectives: memory.stats && typeof memory.stats.objectives === 'object' && memory.stats.objectives ? memory.stats.objectives : {},
-      },
-    };
-    return normalized;
-  }
+  _normalizeMemory(memory = {}) { return normalizeMemory(memory); }
 
   _saveMemory() {
     if (!this.memoryPath) return;
@@ -162,57 +143,17 @@ class Agent {
     }
   }
 
-  _goalKey(goal) {
-    return lower(goal);
-  }
+  _goalKey(goal) { return goalKey(goal); }
 
-  _findGoalRecord(goal) {
-    const key = this._goalKey(goal);
-    for (let i = this.memory.goals.length - 1; i >= 0; i -= 1) {
-      const entry = this.memory.goals[i];
-      if (entry && entry.key === key) return entry;
-    }
-    return null;
-  }
+  _findGoalRecord(goal) { return findGoalRecord(this.memory, goal); }
 
-  _findResumeRun(goal) {
-    const key = this._goalKey(goal);
-    for (let i = this.memory.runs.length - 1; i >= 0; i -= 1) {
-      const entry = this.memory.runs[i];
-      if (!entry || entry.key !== key) continue;
-      if (entry.status === 'completed') continue;
-      if (!Array.isArray(entry.queuedSteps) || entry.queuedSteps.length === 0) continue;
-      return entry;
-    }
-    return null;
-  }
+  _findResumeRun(goal) { return findResumeRun(this.memory, goal); }
 
-  _updateToolStats(tool, status) {
-    if (!tool) return;
-    const bucket = this.memory.stats.tools[tool] || { planned: 0, success: 0, blocked: 0, error: 0 };
-    bucket.planned += 1;
-    if (status === 'done') bucket.success += 1;
-    else if (status === 'blocked') bucket.blocked += 1;
-    else if (status === 'error') bucket.error += 1;
-    this.memory.stats.tools[tool] = bucket;
-  }
+  _updateToolStats(tool, status) { updateToolStats(this.memory, tool, status); }
 
-  _updateObjectiveStats(objective, status) {
-    if (!objective) return;
-    const bucket = this.memory.stats.objectives[objective] || { plans: 0, completed: 0, blocked: 0, error: 0 };
-    bucket.plans += 1;
-    if (status === 'completed') bucket.completed += 1;
-    else if (status === 'blocked') bucket.blocked += 1;
-    else if (status === 'error') bucket.error += 1;
-    this.memory.stats.objectives[objective] = bucket;
-  }
+  _updateObjectiveStats(objective, status) { updateObjectiveStats(this.memory, objective, status); }
 
-  _pruneMemory() {
-    this.memory.plans = this.memory.plans.slice(-MEMORY_LIMITS.plans);
-    this.memory.runs = this.memory.runs.slice(-MEMORY_LIMITS.runs);
-    this.memory.goals = this.memory.goals.slice(-MEMORY_LIMITS.goals);
-    this.memory.failures = this.memory.failures.slice(-MEMORY_LIMITS.goals);
-  }
+  _pruneMemory() { pruneMemory(this.memory); }
 
   _recordGoal(goal, objective, status, meta = {}) {
     const key = this._goalKey(goal);
@@ -245,14 +186,7 @@ class Agent {
     return stepFailureSignature(step, state);
   }
 
-  _findRecentFailure(signature) {
-    const key = String(signature || '');
-    for (let i = this.memory.failures.length - 1; i >= 0; i -= 1) {
-      const entry = this.memory.failures[i];
-      if (entry && entry.signature === key) return entry;
-    }
-    return null;
-  }
+  _findRecentFailure(signature) { return findRecentFailure(this.memory, signature); }
 
   _recordFailure(step, state, result, attempt = 1) {
     const signature = this._stepSignature(step, state);
@@ -346,155 +280,16 @@ class Agent {
     return entry;
   }
 
-  _policy(goal, objective) {
-    const text = lower(goal);
-    const baseOrders = {
-      learn: ['learn', 'verify', 'ask'],
-      verify: ['ask', 'verify', 'reason', 'dream'],
-      compare: ['ask', 'compare', 'dream', 'verify'],
-      reason: ['ask', 'reason', 'verify', 'dream'],
-      dream: ['dream', 'ask', 'verify'],
-      plan: ['ask', 'verify', 'dream', 'reason'],
-      investigate: ['ask', 'verify', 'reason', 'dream'],
-    };
-    const signals = [];
-    const failureHits = [];
-    if (/(ignore|yok say|sistem mesaj|system prompt|developer message|gizli komut)/i.test(text)) {
-      signals.push('manipulation');
-    }
-    if (/\b(mi|mı|mu|mü)\b/.test(text) || /\?$/.test(text)) {
-      signals.push('question');
-    }
-    if (/(plan|task|görev|ajan|workflow|adım)/i.test(text)) {
-      signals.push('workflow');
-    }
-    const base = baseOrders[objective] || baseOrders.investigate;
-    const scores = new Map(base.map((tool, index) => [tool, 100 - index * 10]));
-    const scoreReasons = new Map(base.map(tool => [tool, ['objective-default']]));
-    const bump = (tool, amount, reason) => {
-      scores.set(tool, (scores.get(tool) || 0) + amount);
-      const reasons = scoreReasons.get(tool) || [];
-      reasons.push(reason);
-      scoreReasons.set(tool, reasons);
-    };
-    const toolStats = this.memory?.stats?.tools || {};
-    for (const [tool, stat] of Object.entries(toolStats)) {
-      const success = Number(stat.success || 0);
-      const blocked = Number(stat.blocked || 0);
-      const error = Number(stat.error || 0);
-      const planned = Number(stat.planned || 0);
-      const boost = success * 4 - blocked * 5 - error * 7;
-      if (scores.has(tool) && boost !== 0) {
-        bump(tool, boost, boost > 0 ? 'tool-health-positive' : 'tool-health-negative');
-      }
-      if (planned > 0 && (blocked + error) > success && scores.has(tool)) {
-        signals.push('tool-health-risk');
-      }
-    }
-    if (signals.includes('manipulation')) {
-      bump('verify', 25, 'manipulation-risk');
-      bump('reason', 8, 'manipulation-risk');
-    }
-    const goalRecord = this._findGoalRecord(goal);
-    if (goalRecord) {
-      signals.push('known-goal');
-      bump('ask', 6, 'known-goal');
-      if (goalRecord.status === 'completed') {
-        signals.push('known-goal-success');
-        bump('verify', 5, 'known-goal-success');
-      }
-      if (goalRecord.status === 'blocked' || goalRecord.status === 'error') {
-        signals.push('known-goal-risk');
-        bump('dream', 10, 'known-goal-risk');
-        bump('reason', 6, 'known-goal-risk');
-      }
-    }
-    for (const tool of base) {
-      const sig = this._stepSignature({ tool, action: tool, input: goal }, { goal });
-      const failure = this._findRecentFailure(sig);
-      if (failure) {
-        failureHits.push({ tool, error: failure.error, attempt: failure.attempt });
-        signals.push('recent-failure');
-        bump(tool, -35, 'recent-failure');
-      }
-    }
-    const toolScores = [...scores.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([tool, score]) => ({
-        tool,
-        score,
-        reasons: scoreReasons.get(tool) || [],
-      }));
-    const ordered = toolScores.map(item => item.tool);
-    for (const tool of base) {
-      if (!ordered.includes(tool)) ordered.push(tool);
-    }
-    return {
-      objective,
-      selectedTools: ordered.slice(0, 4),
-      baseTools: base,
-      signals,
-      failureHits,
-      toolScores,
-      rationale: signals.includes('manipulation')
-        ? 'Risk-aware policy boosted verify and reason first.'
-        : signals.includes('recent-failure')
-          ? 'Recent failure history reduced repeated tool choices.'
-        : signals.includes('tool-health-risk')
-          ? 'Tool health history reduced unreliable choices.'
-        : goalRecord
-          ? 'Known goal found in memory, so the planner keeps a slightly stronger ask/verify mix.'
-          : 'Default tool policy selected by objective.',
-    };
-  }
+  _policy(goal, objective) { return planningPolicy({ goal, objective, memory: this.memory }); }
 
-  _objective(goal) {
-    const text = lower(goal);
-    if (/(öğren|ekle|kaydet|teach|learn)/i.test(text)) return 'learn';
-    if (/(karşılaştır|kıyas|compare|vs)/i.test(text)) return 'compare';
-    if (/(neden|niçin|why)/i.test(text)) return 'reason';
-    if (/(doğrula|kontrol et|verify|çeliş|risk|manipül)/i.test(text)) return 'verify';
-    if (/\b(mi|mı|mu|mü)\b/.test(text) || /\?$/.test(text)) return 'verify';
-    if (/(hipotez|öner|dream|rüya|fikir)/i.test(text)) return 'dream';
-    if (/(plan|görev|task|ajan|workflow|yap)/i.test(text)) return 'plan';
-    return 'investigate';
-  }
+  _objective(goal) { return objectiveForGoal(goal); }
 
   _buildPlan(goal, opts = {}) {
     const objective = this._objective(goal);
     const cleanedGoal = normalizeGoal(goal);
     const goalIntegrity = prepareGoalIntegrityForPlan(this, cleanedGoal, opts); if (!goalIntegrity.ok) return goalIntegrity.result;
     const policy = this._policy(cleanedGoal, objective);
-    const steps = [];
-    const pushStep = (id, action, tool, input, rationale) => {
-      steps.push({ id, action, tool, input, rationale });
-    };
-
-    if (objective === 'learn') {
-      pushStep('ingest', 'learn', 'learn', cleanedGoal, 'The request is oriented towards adding knowledge.');
-      pushStep('confirm', 'verify', 'verify', cleanedGoal, 'New knowledge is verified where possible.');
-    } else if (objective === 'compare') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Context is gathered for the comparison.');
-      pushStep('compare', 'compare', 'compare', cleanedGoal, 'Differences between the two entities are extracted.');
-    } else if (objective === 'reason') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Context is gathered for the cause analysis.');
-      pushStep('reason', 'reason', 'reason', cleanedGoal, 'A cause-and-effect chain is built.');
-    } else if (objective === 'verify') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'The claim is checked against the graph.');
-      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Correctness and contradictions are audited.');
-      pushStep('fallback', 'dream', 'dream', {}, 'If the result is unknown, a hypothesis is generated and the gap is flagged.');
-    } else if (objective === 'dream') {
-      pushStep('dream', 'dream', 'dream', {}, 'A hypothesis and a contextual recommendation are produced.');
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'Context is expanded after the hypothesis.');
-    } else if (objective === 'plan') {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'The scope of the task is clarified.');
-      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Critical claims or constraints are verified.');
-      pushStep('dream', 'dream', 'dream', {}, 'Alternative paths and risks are explored.');
-    } else {
-      pushStep('context', 'ask', 'ask', cleanedGoal, 'General context is gathered.');
-      pushStep('verify', 'verify', 'verify', cleanedGoal, 'Mevcut iddia destekleniyor mu kontrol edilir.');
-      pushStep('dream', 'dream', 'dream', {}, 'Hypotheses are generated for the missing areas.');
-    }
+    const steps = planSteps(objective, cleanedGoal);
 
     const limitedSteps = steps.slice(0, Math.max(1, opts.maxSteps || this.maxSteps));
     const memorySummary = {
