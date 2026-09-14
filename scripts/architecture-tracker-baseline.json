@@ -423,9 +423,7 @@
     "plugins/company-brain.js": {
       "band": "recorded",
       "lines": 678,
-      "signals": [
-        "ISP:1"
-      ]
+      "signals": []
     },
     "plugins/receipt-exporter.js": {
       "band": "recorded",

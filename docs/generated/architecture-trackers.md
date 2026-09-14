@@ -36,7 +36,7 @@ Tracked in total: **81**
 | `dream.js` | 726 | ISP:1 |
 | `plugins/repo-memory.js` | 726 | — |
 | `lib/a2a/bounded-exchange.js` | 693 | — |
-| `plugins/company-brain.js` | 678 | ISP:1 |
+| `plugins/company-brain.js` | 678 | — |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
 | `lib/provenance-query.js` | 656 | — |
 | `lib/receipt/receipt-read-index.js` | 640 | ISP:1 |

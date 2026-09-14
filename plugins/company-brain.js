@@ -385,7 +385,7 @@ function ingestManual(kernel, input = {}) {
   let matchedFacts = 0;
   const rankingEnabled = kernel.hasCapability && kernel.hasCapability('evidenceRanking');
   for (const fact of facts) {
-    const parsed = typeof kernel._parsePredicate === 'function' ? kernel._parsePredicate(fact.predicate) : null;
+    const parsed = typeof kernel.parsePredicate === 'function' ? kernel.parsePredicate(fact.predicate) : null;
     if (!parsed || !fact.subject || !parsed.object) continue;
     matchedFacts += 1;
     const base = 0.6;
