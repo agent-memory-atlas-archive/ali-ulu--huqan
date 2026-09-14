@@ -341,11 +341,10 @@
       "signals": []
     },
     "mcpServer.js": {
-      "band": "decompose",
-      "lines": 807,
+      "band": "recorded",
+      "lines": 788,
       "signals": [
-        "FANOUT:34",
-        "OCP:23"
+        "FANOUT:34"
       ]
     },
     "plugin.js": {
