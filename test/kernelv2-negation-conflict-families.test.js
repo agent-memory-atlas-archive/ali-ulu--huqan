@@ -11,7 +11,7 @@ const KernelV2 = require('../kernel.v2');
 // A negated statement can conflict with two different edge families, and they
 // are not interchangeable: a fact edge (`yapabilir`, `özellik`) and a type edge
 // (`tür`). #1989 added the type half; #2065 implemented it by widening
-// _collectFactTargets to swallow type relations, which broke #734's
+// collectFactTargets to swallow type relations, which broke #734's
 // workspace-isolation contract. The split now lives in
 // lib/kernel-v2-type-negation.js.
 //
@@ -73,7 +73,7 @@ test('a negated statement contradicts a known type edge (#1989)', () => {
 
 // The regression #2065 introduced, stated as a rule rather than as one
 // workspace assertion: the fact collector must not report type edges.
-test('_collectFactTargets reports fact edges only, never type edges', () => {
+test('collectFactTargets reports fact edges only, never type edges', () => {
   withKernel((kernel) => {
     kernel.graph.addNode('kedi', 'kedi');
     kernel.graph.addNode('hayvan', 'hayvan');
@@ -84,12 +84,12 @@ test('_collectFactTargets reports fact edges only, never type edges', () => {
     const v2 = new KernelV2({ kernel });
 
     assert.deepStrictEqual(
-      v2._collectFactTargets('kedi', 'default').map((f) => f.rawTarget),
+      v2.collectFactTargets('kedi', 'default').map((f) => f.rawTarget),
       ['ucar'],
     );
     assert.deepStrictEqual(v2._collectTypeTargets('kedi', 'default'), ['hayvan']);
 
-    const factEvidence = v2._buildDirectFactEvidence('kedi', 'default').map((e) => e.text).join(' | ');
+    const factEvidence = v2.buildDirectFactEvidence('kedi', 'default').map((e) => e.text).join(' | ');
     assert.ok(!factEvidence.includes('hayvan'), `fact evidence leaked a type edge: ${factEvidence}`);
   });
 });

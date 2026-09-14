@@ -256,7 +256,7 @@ class KernelV2 {
     });
   }
 
-  _isTypeRelation(relation) {
+  isTypeRelation(relation) {
     return TYPE_RELATIONS.has(String(relation || '').toLowerCase());
   }
 
@@ -265,7 +265,7 @@ class KernelV2 {
     return stripCopulaOrKeep(String(predicate || '')).trim();
   }
 
-  _normalizePredicateToken(predicate) {
+  normalizePredicateToken(predicate) {
     return normalizeAscii(this._normalizeCopulaTail(predicate));
   }
 
@@ -279,7 +279,7 @@ class KernelV2 {
 
       const edges = this.kernel.graph
         .getEdges(current.node, workspaceId)
-        .filter(e => this._isTypeRelation(e.relation));
+        .filter(e => this.isTypeRelation(e.relation));
 
       for (const edge of edges) {
         if (visited.has(edge.to)) continue;
@@ -399,17 +399,17 @@ class KernelV2 {
   _collectTypeTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
-      .filter(edge => this._isTypeRelation(edge.relation))
+      .filter(edge => this.isTypeRelation(edge.relation))
       .map(edge => edge.to);
   }
 
-  _collectFactTargets(subject, workspaceId = 'default') {
+  collectFactTargets(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
       .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
       .map(edge => ({
         relation: edge.relation,
-        target: this._normalizePredicateToken(edge.to),
+        target: this.normalizePredicateToken(edge.to),
         rawTarget: edge.to,
         weight: edge.weight,
       }));
@@ -420,16 +420,16 @@ class KernelV2 {
       .getEdges(subject, workspaceId)
       .map(edge => ({
         relation: edge.relation,
-        target: this._normalizePredicateToken(edge.to),
+        target: this.normalizePredicateToken(edge.to),
         rawTarget: edge.to,
         weight: edge.weight,
       }));
   }
 
-  _buildDirectTypeEvidence(subject, workspaceId = 'default') {
+  buildDirectTypeEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
-      .filter(edge => this._isTypeRelation(edge.relation))
+      .filter(edge => this.isTypeRelation(edge.relation))
       .map(edge => ({
         kind: 'direct_edge',
         text: `${edge.from} --[${edge.relation}]--> ${edge.to}`,
@@ -439,7 +439,7 @@ class KernelV2 {
       }));
   }
 
-  _buildDirectFactEvidence(subject, workspaceId = 'default') {
+  buildDirectFactEvidence(subject, workspaceId = 'default') {
     return this.kernel.graph
       .getEdges(subject, workspaceId)
       .filter(edge => FACT_RELATIONS.has(String(edge.relation || '').toLowerCase()))
@@ -537,7 +537,7 @@ class KernelV2 {
           knownTypes,
           requestedType: normalizedTarget,
           confidenceSource: 'type-lattice-conflict',
-          evidence: typeConflict.evidence || this._buildDirectTypeEvidence(parsed.subject, workspaceId),
+          evidence: typeConflict.evidence || this.buildDirectTypeEvidence(parsed.subject, workspaceId),
           meta: { inferredBy: 'type-conflict' },
         };
       }
@@ -582,7 +582,7 @@ class KernelV2 {
 
     const normalizedTarget = this._normalizeCopulaTail(parsed.predicate);
     if (!normalizedTarget) return this._withVerifyDetails(this.kernel.verify(verificationStatement, opts), risk);
-    const normalizedTargetToken = this._normalizePredicateToken(normalizedTarget);
+    const normalizedTargetToken = this.normalizePredicateToken(normalizedTarget);
 
     const workspaceId = (typeof opts.workspaceId === 'string' && opts.workspaceId.trim()) || 'default'; // #734
     const resolvedSubject = resolveKnownSubject(this.kernel.graph, parsed.subject, workspaceId);

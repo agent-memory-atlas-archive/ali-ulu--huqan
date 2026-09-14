@@ -128,15 +128,15 @@ test('#1167 a false copula no longer makes a claim match an unrelated stored typ
   // verified at 0.95 because kültür and kül normalized to the same predicate
   // token.
   assert.notEqual(
-    kernel._normalizePredicateToken('kültür'),
-    kernel._normalizePredicateToken('kül'),
+    kernel.normalizePredicateToken('kültür'),
+    kernel.normalizePredicateToken('kül'),
   );
 
   // A real copula still normalizes onto its stem, which is what lets
   // "X bir kitaptır" match a stored `kitap` type.
   assert.equal(
-    kernel._normalizePredicateToken('kitaptır'),
-    kernel._normalizePredicateToken('kitap'),
+    kernel.normalizePredicateToken('kitaptır'),
+    kernel.normalizePredicateToken('kitap'),
   );
 });
 
