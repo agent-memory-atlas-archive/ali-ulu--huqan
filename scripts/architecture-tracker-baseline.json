@@ -308,13 +308,6 @@
         "ISP:4"
       ]
     },
-    "lib/memory-store-reopen.js": {
-      "band": "structural",
-      "lines": 87,
-      "signals": [
-        "ISP:2"
-      ]
-    },
     "lib/memory-store.js": {
       "band": "decompose",
       "lines": 968,
