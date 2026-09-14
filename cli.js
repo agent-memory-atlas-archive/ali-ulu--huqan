@@ -118,7 +118,7 @@ class CLI {
     };
   }
 
-  _queueLearnReview(args) { return queueCliLearnReview({ kernel: this.kernel, approvalRuntime: () => this._approvalRuntime(), callTool: callMcpTool }, args); }
+  queueLearnReview(args) { return queueCliLearnReview({ kernel: this.kernel, approvalRuntime: () => this._approvalRuntime(), callTool: callMcpTool }, args); }
 
   _ensureCompanyCapabilities() {
     if (typeof this.kernel.hasCapability === 'function' && !this.kernel.hasCapability('companyMode')) {
@@ -153,10 +153,10 @@ class CLI {
   execute(command, args, opts = {}) {
     const gateResult = Object.prototype.hasOwnProperty.call(opts, 'gateResult')
       ? opts.gateResult
-      : this._evaluateCliGate(command, args);
+      : this.evaluateCliGate(command, args);
     if (gateResult && !gateResult.canExecute) {
       if (mapCliCommandToMcpTool(command) === 'huqan.learn' && gateResult.decision === 'review') {
-        const proposal = this._queueLearnReview(args);
+        const proposal = this.queueLearnReview(args);
         if (opts.json) return proposal;
         const approvalId = proposal?.approval?.id || '';
         return approvalId ? `Learn requires review. Approval queued: ${approvalId}` : this._formatCliGateMessage(command, gateResult);
@@ -695,7 +695,7 @@ class CLI {
     });
   }
 
-  _evaluateCliGate(command, args) {
+  evaluateCliGate(command, args) {
     // Approval execution is delegated to the MCP approval handler. It validates
     // the persisted id and runs the admission-aware learn path, so a synthetic
     // CLI allow decision must not bypass that authority.

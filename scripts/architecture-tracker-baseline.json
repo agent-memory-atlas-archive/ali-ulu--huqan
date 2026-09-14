@@ -104,13 +104,6 @@
       "lines": 555,
       "signals": []
     },
-    "lib/cli-workflow-adapter.js": {
-      "band": "structural",
-      "lines": 269,
-      "signals": [
-        "ISP:3"
-      ]
-    },
     "lib/code-change-gate.js": {
       "band": "decompose",
       "lines": 834,

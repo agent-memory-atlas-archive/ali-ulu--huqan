@@ -90,6 +90,6 @@ Tracked in total: **76**
 | `rustGraph.js` | 399 | DIP |
 | `lib/kernel-mutation-admission.js` | 305 | ISP:1 |
 | `lib/memory-store-json-persistence.js` | 281 | ISP:4 |
-| `lib/cli-workflow-adapter.js` | 269 | ISP:3 |
+| `lib/self-healer/finding-schema.js` | 280 | OCP:6 |
 | `lib/hypothesis-review.js` | 145 | ISP:1 |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |
