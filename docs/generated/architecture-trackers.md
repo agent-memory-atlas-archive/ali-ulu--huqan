@@ -41,7 +41,6 @@ Tracked in total: **78**
 | `lib/provenance-query.js` | 656 | — |
 | `lib/receipt/receipt-read-index.js` | 640 | — |
 | `storage.js` | 627 | — |
-| `lib/external-action-receipt.js` | 621 | DIP |
 | `lib/conflict-detector.js` | 617 | ISP:6 |
 | `lib/github-app-streaming-trust.js` | 612 | — |
 | `lib/mcp-gate-adapter.js` | 612 | — |
@@ -49,6 +48,7 @@ Tracked in total: **78**
 | `backupRestore.js` | 610 | — |
 | `lib/external-action-guard.js` | 607 | — |
 | `finalizer.js` | 604 | — |
+| `lib/external-action-receipt.js` | 590 | — |
 | `lib/ingest.js` | 587 | — |
 | `lib/memory-schema.js` | 568 | — |
 | `lib/causal/causal-verdict.js` | 555 | — |

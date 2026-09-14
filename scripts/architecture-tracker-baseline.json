@@ -160,10 +160,8 @@
     },
     "lib/external-action-receipt.js": {
       "band": "recorded",
-      "lines": 621,
-      "signals": [
-        "DIP"
-      ]
+      "lines": 590,
+      "signals": []
     },
     "lib/external-client-mutation-receipt-owner.js": {
       "band": "recorded",

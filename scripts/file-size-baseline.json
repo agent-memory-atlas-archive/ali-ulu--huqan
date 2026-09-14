@@ -36,7 +36,7 @@
     "lib/external-action-gate-install.js": 779,
     "lib/external-action-guard.js": 607,
     "lib/external-action-receipt-collector.js": 448,
-    "lib/external-action-receipt.js": 621,
+    "lib/external-action-receipt.js": 590,
     "lib/external-client-mutation-receipt-owner.js": 741,
     "lib/external-client-replay-store.js": 510,
     "lib/external-client-trust-config.js": 448,
