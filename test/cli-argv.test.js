@@ -124,7 +124,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     let resolved = false;
     const cli = {
       parse: () => ({ command: 'async-command', args: 'payload' }),
-      _evaluateCliGate: () => null,
+      evaluateCliGate: () => null,
       execute: () => new Promise(resolve => {
         setTimeout(() => {
           resolved = true;
@@ -147,7 +147,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     const stderr = [];
     const cli = {
       parse: () => ({ command: 'async-command', args: '' }),
-      _evaluateCliGate: () => null,
+      evaluateCliGate: () => null,
       execute: async () => {
         throw new Error('async failure');
       },
@@ -166,8 +166,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     const stdout = [];
     const cli = {
       parse: () => ({ command: 'guarded', args: '' }),
-      _evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
-      _formatCliGateMessage: () => 'approval required',
+      evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
       execute: () => {
         throw new Error('guarded command must not execute');
       },
@@ -180,7 +179,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
 
     assert.strictEqual(result.exitCode, 5, 'review_required is 5 in both modes (#1995)');
     assert.strictEqual(result.decision, 'review');
-    assert.deepStrictEqual(stdout, ['approval required']);
+    assert.match(stdout.join('\n'), /requires review/, 'the real gate message explains the block');
   });
 });
 
@@ -191,7 +190,7 @@ describe('CLI exit code parity between output modes (#1995)', () => {
       // capability_not_available before reaching the gate, and the two runs
       // would be comparing different branches rather than the same outcome.
       parse: () => ({ command: 'async-command', args: '', workflowId: 'wf-async' }),
-      _evaluateCliGate: () => null,
+      evaluateCliGate: () => null,
       execute: async () => { throw new Error('async failure'); },
     };
   }
@@ -199,8 +198,7 @@ describe('CLI exit code parity between output modes (#1995)', () => {
   function reviewed() {
     return {
       parse: () => ({ command: 'guarded', args: '', workflowId: 'wf-guarded' }),
-      _evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
-      _formatCliGateMessage: () => 'approval required',
+      evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
       execute: () => { throw new Error('guarded command must not execute'); },
     };
   }

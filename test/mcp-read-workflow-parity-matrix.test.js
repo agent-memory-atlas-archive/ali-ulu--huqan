@@ -153,7 +153,7 @@ function createCliFixture(kernel) {
       const [command, ...args] = commandLine.split(' ');
       return { command, args, workflowId: command === 'sor' ? 'ask' : command === 'verify' ? 'verify' : null };
     },
-    _evaluateCliGate() {
+    evaluateCliGate() {
       return { canExecute: true, decision: 'allow', reason: 'read_only_allow' };
     },
     async execute(command, args) {

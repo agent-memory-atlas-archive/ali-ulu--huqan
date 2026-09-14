@@ -9,8 +9,7 @@ const { CLI_COMMAND_CAPABILITIES, WORKFLOW_CAPABILITIES } = require('../lib/work
 function fakeCli({ parsed, gate = null, output = 'ok', error = null }) {
   return {
     parse: () => parsed,
-    _evaluateCliGate: () => gate,
-    _formatCliGateMessage: () => 'legacy gate text',
+    evaluateCliGate: () => gate,
     execute: async () => {
       if (error) throw error;
       return output;

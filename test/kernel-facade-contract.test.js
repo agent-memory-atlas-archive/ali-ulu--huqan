@@ -486,7 +486,7 @@ test('4C1: installed tarball CLI exposes the stable JSON workflow contract', () 
     const output = [];
     const cli = {
       parse: () => ({ command: 'sor', args: 'cat nedir', workflowId: 'ask' }),
-      _evaluateCliGate: () => null,
+      evaluateCliGate: () => null,
       execute: () => 'Cevap: cat',
     };
     CLI.runCliArgv(['--json', 'ask:', 'cat', 'nedir'], { cli, stdout: value => output.push(value) })
