@@ -34,11 +34,13 @@ describe('PR-S6 tombstone and supersede cascade', () => {
 
     const listRes = store.list({ workspaceId: 'ws-a' });
     assert.strictEqual(listRes.total, 2);
-    assert.deepStrictEqual(listRes.memories.map((m) => m.content), ['alpha', 'gamma']);
+    // Records created in the same millisecond order by their content-hash id, so on fast
+    // hardware the order is not insertion order. This test is about what is hidden, not order.
+    assert.deepStrictEqual(listRes.memories.map((m) => m.content).sort(), ['alpha', 'gamma']);
 
     const queryRes = store.query({ workspaceId: 'ws-a' });
     assert.strictEqual(queryRes.total, 2);
-    assert.deepStrictEqual(queryRes.memories.map((m) => m.content), ['alpha', 'gamma']);
+    assert.deepStrictEqual(queryRes.memories.map((m) => m.content).sort(), ['alpha', 'gamma']);
 
     const queryIncludeDeleted = store.query({ workspaceId: 'ws-a', includeDeleted: true });
     assert.strictEqual(queryIncludeDeleted.total, 3);
