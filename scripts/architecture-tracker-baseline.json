@@ -337,13 +337,6 @@
         "OCP:10"
       ]
     },
-    "lib/self-healer/finding-schema.js": {
-      "band": "structural",
-      "lines": 280,
-      "signals": [
-        "OCP:6"
-      ]
-    },
     "lib/storage/tool-approval-methods.js": {
       "band": "recorded",
       "lines": 424,
