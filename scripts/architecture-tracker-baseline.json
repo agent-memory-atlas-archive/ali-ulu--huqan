@@ -224,7 +224,7 @@
     },
     "lib/mcp-tool-catalog.js": {
       "band": "recorded",
-      "lines": 531,
+      "lines": 511,
       "signals": []
     },
     "lib/mcp-tool-data-schemas.js": {

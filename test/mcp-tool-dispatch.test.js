@@ -107,6 +107,9 @@ const CASES = [
   ['huqan.ingest_preview', { fail: true }],
   ['huqan.ingest_status', { runId: 'r1' }],
   ['huqan.ingest_execute', { source: 'notes' }],
+  ['huqan.emergency_stop', { action: 'check', workspaceId: 'w1' }],
+  ['huqan.emergency_stop', { action: 'stop', scope: 'workspace', workspaceId: 'w1', reason: 'halt it' }],
+  ['huqan.emergency_stop', { action: 'lift', scope: 'workspace', workspaceId: 'w1', reason: 'resume it' }],
 ];
 
 async function runCase(name, args) {
@@ -117,6 +120,24 @@ async function runCase(name, args) {
     params.operatorCapability = createMcpOperatorCapability({ secret: 'test-operator', ...operatorCapabilityBinding(name, args) });
     runtime.operatorSecret = 'test-operator';
     runtime.operatorCapabilityNonces = new Map();
+  }
+  if (name === 'huqan.emergency_stop') {
+    // Authorised like the other operator tools above; the ledger is injected
+    // so no real stop directory is touched. stop/lift record fixed receipts so
+    // the digest is deterministic.
+    params.operatorCapability = createMcpOperatorCapability({ secret: 'test-operator', ...operatorCapabilityBinding(name, args) });
+    runtime.operatorSecret = 'test-operator';
+    runtime.operatorCapabilityNonces = new Map();
+    runtime.emergencyStop = {
+      check: record('emergencyStop.check', { stopped: false, scope: null, reason: null, record: null }),
+      stop: record('emergencyStop.stop', (input) => ({
+        ok: true,
+        created: true,
+        record: { scope: input.scope, workspaceId: input.workspaceId, agentId: input.agentId ?? null },
+        receipt: { receiptHash: 'test-receipt' },
+      })),
+      lift: record('emergencyStop.lift', () => ({ ok: true, lifted: true, receipt: null })),
+    };
   }
   try {
     const output = await callTool(kernel, params, runtime);
@@ -167,6 +188,7 @@ const GOLDEN = {
   'huqan.ingest_preview': 'c865da9cf3eaed67fa72e57f4f2ec765889a0e4a23c014f56c3f2a16241ed719',
   'huqan.ingest_status': '5eb079bc6a66e3237af883639d70d66c32a05c9458a1dae99636aee0f32dc2d3',
   'huqan.ingest_execute': 'f9926414c4d0807dd5afa0bd435b56adba9087e481870ac6861340edb8645189',
+  'huqan.emergency_stop': '7d5114510b49e68654c189636d00cfbdcf605a30063abff2d272c6b150f1fc9c',
 };
 
 describe('MCP tool dispatch (unchanged)', () => {
@@ -199,6 +221,21 @@ describe('MCP tool dispatch (unchanged)', () => {
       const result = await runCase(name, {});
       assert.equal(result.thrown, `Unknown tool: ${name}`, name);
     }
+  });
+
+  it('huqan.emergency_stop refuses an unknown action without touching the ledger', async () => {
+    const args = { action: 'explode', scope: 'workspace', workspaceId: 'w1' };
+    const params = {
+      name: 'huqan.emergency_stop',
+      arguments: args,
+      operatorCapability: createMcpOperatorCapability({ secret: 'test-operator', ...operatorCapabilityBinding('huqan.emergency_stop', args) }),
+    };
+    const noLedger = new Proxy({}, { get: () => { throw new Error('ledger must not be touched'); } });
+    const runtime = { approvalStore, operatorSecret: 'test-operator', operatorCapabilityNonces: new Map(), emergencyStop: noLedger };
+    const output = await callTool(kernel, params, runtime);
+    assert.equal(output.ok, false);
+    assert.equal(output.error.code, 'INVALID_ACTION');
+    assert.equal(output.workflowId, 'emergency-stop');
   });
 });
 

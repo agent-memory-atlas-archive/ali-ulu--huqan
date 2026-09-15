@@ -201,3 +201,12 @@ test('an A2A exchange naming a stopped agent is refused', (t) => {
     ledger.lift({ scope: 'agent', workspaceId: fixture.request.workspaceId, agentId, actor: 'operator:test' });
   }
 });
+
+test('operator argument shapes default to the default workspace (#2505 F-2b)', () => {
+  const { checkArguments, changeArguments } = require('../lib/emergency-stop');
+  assert.deepEqual(checkArguments({}), { workspaceId: 'default', agentId: '' });
+  assert.deepEqual(checkArguments({ workspaceId: '  w1 ' }), { workspaceId: 'w1', agentId: '' });
+  assert.deepEqual(changeArguments({ action: 'stop', scope: 'workspace' }), { action: 'stop', scope: 'workspace', workspaceId: 'default', agentId: '', reason: '' });
+  assert.equal(changeArguments({ action: 'stop', scope: 'workspace', workspaceId: '', reason: '  halt ' }).reason, 'halt');
+});
+

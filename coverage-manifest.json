@@ -402,22 +402,22 @@
       ],
       "sites": [
         {
-          "line": 78,
+          "line": 105,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         },
         {
-          "line": 105,
+          "line": 132,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 114,
+          "line": 141,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 128,
+          "line": 155,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
