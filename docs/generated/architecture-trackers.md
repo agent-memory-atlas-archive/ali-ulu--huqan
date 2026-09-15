@@ -37,10 +37,9 @@ Tracked in total: **69**
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 617 | ISP:6 |
 | `lib/github-app-streaming-trust.js` | 612 | — |
-| `lib/mcp-gate-adapter.js` | 612 | — |
 | `lib/mcp-tool-data-schemas.js` | 612 | — |
 | `backupRestore.js` | 610 | — |
-| `lib/external-action-guard.js` | 607 | — |
+| `lib/mcp-gate-adapter.js` | 608 | — |
 | `finalizer.js` | 604 | — |
 | `lib/external-action-receipt.js` | 590 | — |
 | `lib/ingest.js` | 587 | — |
@@ -49,6 +48,7 @@ Tracked in total: **69**
 | `lib/causal/causal-verdict.js` | 555 | — |
 | `lib/automation-safety-gate/automation-operation-classifier.js` | 545 | — |
 | `lib/dream-experiment-loop.js` | 533 | — |
+| `lib/external-action-guard.js` | 532 | — |
 | `lib/contradiction-rules.js` | 531 | — |
 | `lib/mcp-tool-catalog.js` | 531 | — |
 | `sandboxRunner.js` | 530 | OCP:8 |
