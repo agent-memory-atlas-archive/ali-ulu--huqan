@@ -157,6 +157,7 @@
     "lib/emergency-stop.js",
     "lib/agent-action-firewall.js",
     "lib/agent-behavioral-integrity.js",
+    "lib/behavioral-stop-bridge.js",
     "lib/agent-failure-signature.js",
     "lib/agent-identity-runtime.js",
     "lib/goal-integrity-gate.js",
