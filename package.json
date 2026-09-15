@@ -151,6 +151,7 @@
     "lib/a2a/task-store.js",
     "lib/action-risk-classifier.js",
     "lib/blast-radius.js",
+    "lib/memory-blast-radius.js",
     "lib/agent-action-firewall.js",
     "lib/agent-behavioral-integrity.js",
     "lib/agent-failure-signature.js",
