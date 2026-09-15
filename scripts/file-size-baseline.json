@@ -26,7 +26,6 @@
     "lib/automation-safety-gate/automation-operation-classifier.js": 545,
     "lib/causal/causal-traversal.js": 451,
     "lib/causal/causal-verdict.js": 555,
-    "lib/code-change-gate.js": 834,
     "lib/command-exec-gate.js": 515,
     "lib/conflict-detector.js": 617,
     "lib/connector-action-firewall.js": 469,
@@ -146,10 +145,6 @@
     "lib/causal/causal-verdict.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
-    },
-    "lib/code-change-gate.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2026-10-31"
     },
     "lib/command-exec-gate.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
