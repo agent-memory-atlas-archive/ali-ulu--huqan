@@ -128,7 +128,7 @@
     },
     "lib/external-action-guard.js": {
       "band": "recorded",
-      "lines": 532,
+      "lines": 531,
       "signals": []
     },
     "lib/external-action-receipt-collector.js": {
@@ -224,7 +224,7 @@
     },
     "lib/mcp-gate-adapter.js": {
       "band": "recorded",
-      "lines": 608,
+      "lines": 606,
       "signals": []
     },
     "lib/mcp-tool-catalog.js": {

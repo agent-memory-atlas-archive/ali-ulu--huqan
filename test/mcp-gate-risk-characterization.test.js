@@ -54,9 +54,28 @@ function observe() {
   return out;
 }
 
+// Scores anywhere, and the top-level risk level, are pinned by their own tests:
+// the level is derived from the score with the action-taxonomy bands (#2505).
 function withoutRiskScores(record) {
-  return JSON.parse(JSON.stringify(record, (key, item) => (key === 'score' ? '<score>' : item)));
+  const masked = JSON.parse(JSON.stringify(record, (key, item) => (key === 'score' ? '<score>' : item)));
+  if (masked && masked.risk && typeof masked.risk === 'object') masked.risk.level = '<level>';
+  return masked;
 }
+
+function taxonomyBand(score) {
+  if (score >= 75) return 'critical';
+  if (score >= 50) return 'high';
+  if (score >= 25) return 'medium';
+  return 'low';
+}
+
+test('every MCP gate risk level is the taxonomy band of its score', () => {
+  const actual = observe();
+  for (const [key, run] of Object.entries(actual)) {
+    if (run.threw) continue;
+    assert.equal(String(run.risk.level).toLowerCase(), taxonomyBand(run.risk.score), `${key}: level ${run.risk.level} for score ${run.risk.score}`);
+  }
+});
 
 test('MCP gate decisions, reasons and findings match the recorded characterisation', () => {
   const actual = observe();
