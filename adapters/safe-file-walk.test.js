@@ -19,7 +19,7 @@ const ADAPTERS = [
 ];
 
 function makeTempRoot(t, label) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-${label}-`));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), `huqan-${label}-`)));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }

@@ -46,7 +46,7 @@ test('json-adapter: bounds nesting and serialized entry output', () => {
 });
 
 test('json-adapter: aggregate budget failure is atomic before learning', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-atomic-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-atomic-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'a.json'), '{"a":"alpha"}');
   fs.writeFileSync(path.join(dir, 'b.json'), '{"b":"beta"}');
@@ -59,7 +59,7 @@ test('json-adapter: aggregate budget failure is atomic before learning', (t) => 
 });
 
 test('json-adapter: listJsonFiles and ingestJson work recursively', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-')));
   const nested = path.join(dir, 'config');
   fs.mkdirSync(nested, { recursive: true });
   const f1 = path.join(dir, 'root.json');
@@ -83,7 +83,7 @@ test('json-adapter: listJsonFiles and ingestJson work recursively', () => {
 });
 
 test('json-adapter: ingestJson reports parse errors without throwing', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-err-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-err-')));
   const bad = path.join(dir, 'broken.json');
   fs.writeFileSync(bad, '{not valid', 'utf8');
 
@@ -98,8 +98,8 @@ test('json-adapter: ingestJson reports parse errors without throwing', () => {
 });
 
 test('json-adapter: rejects traversal and absolute paths outside root', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-root-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-outside-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-root-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-outside-')));
   const inside = path.join(dir, 'inside.json');
   const outside = path.join(outsideDir, 'outside.json');
   fs.writeFileSync(inside, JSON.stringify({ a: 'safe' }), 'utf8');
@@ -122,8 +122,8 @@ test('json-adapter: rejects traversal and absolute paths outside root', () => {
 });
 
 test('json-adapter: rejects symlink escape when supported', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-link-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-link-out-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-link-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-link-out-')));
   const outside = path.join(outsideDir, 'escape.json');
   const linkPath = path.join(dir, 'escape.json');
   fs.writeFileSync(outside, JSON.stringify({ a: 'secret' }), 'utf8');
@@ -145,7 +145,7 @@ test('json-adapter: rejects symlink escape when supported', () => {
 });
 
 test('json-adapter: ingestAndLearn forwards provenance per entry', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-learn-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-json-learn-')));
   const file = path.join(dir, 'note.json');
   const calls = [];
   fs.writeFileSync(file, JSON.stringify({ claim: 'A bounded claim' }), 'utf8');

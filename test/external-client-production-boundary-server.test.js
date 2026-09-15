@@ -18,7 +18,7 @@ test('real child server admits one signed package through the fully configured p
     const fixture = require(process.argv[2]);
     const { stableStringify } = require('./lib/receipt/canonical-receipt');
     const { EXTERNAL_CLIENT_TRUST_CONFIG_VERSION } = require('./lib/external-client-trust-config');
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d8-real-server-'));
+    const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d8-real-server-')));
     const keys = crypto.generateKeyPairSync('ed25519');
     const now = Date.now();
     const profilePath = path.join(directory, 'profile.json');

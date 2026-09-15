@@ -32,7 +32,7 @@ let repoRoot;
 let outsideDir;
 
 before(() => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-symlink-'));
+  tempDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-symlink-')));
   repoRoot = path.join(tempDir, 'repo');
   outsideDir = path.join(tempDir, 'outside');
   fs.mkdirSync(path.join(repoRoot, 'sub'), { recursive: true });

@@ -14,7 +14,7 @@ const {
 const { resolvePersistencePaths } = require('../persistencePaths');
 
 function tmpDir(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 }
 
 describe('Persistence path derivation (#1025)', () => {

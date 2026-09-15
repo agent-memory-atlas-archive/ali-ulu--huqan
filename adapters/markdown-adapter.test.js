@@ -56,7 +56,7 @@ test('markdown-adapter: bounds lines, sections, and section output', () => {
 });
 
 test('markdown-adapter: aggregate budget failure is atomic before learning', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-markdown-atomic-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-markdown-atomic-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'a.md'), '# A\nalpha');
   fs.writeFileSync(path.join(dir, 'b.md'), '# B\nbeta');
@@ -69,7 +69,7 @@ test('markdown-adapter: aggregate budget failure is atomic before learning', (t)
 });
 
 test('markdown-adapter: listMarkdownFiles and ingestMarkdown work recursively', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-')));
   const nested = path.join(dir, 'docs');
   fs.mkdirSync(nested, { recursive: true });
   const f1 = path.join(dir, 'README.md');
@@ -92,8 +92,8 @@ test('markdown-adapter: listMarkdownFiles and ingestMarkdown work recursively', 
 });
 
 test('markdown-adapter: rejects traversal and absolute paths outside root', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-root-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-outside-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-root-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-outside-')));
   const inside = path.join(dir, 'inside.md');
   const outside = path.join(outsideDir, 'outside.md');
   fs.writeFileSync(inside, '# Inside\nsafe text', 'utf8');
@@ -116,8 +116,8 @@ test('markdown-adapter: rejects traversal and absolute paths outside root', () =
 });
 
 test('markdown-adapter: rejects symlink escape when supported', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-link-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-link-out-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-link-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-link-out-')));
   const outside = path.join(outsideDir, 'escape.md');
   const linkPath = path.join(dir, 'escape.md');
   fs.writeFileSync(outside, '# Outside\nsecret text', 'utf8');
@@ -139,7 +139,7 @@ test('markdown-adapter: rejects symlink escape when supported', () => {
 });
 
 test('markdown-adapter: ingestAndLearn forwards structural volatile provenance without connector evidence', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-learn-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-md-learn-')));
   const file = path.join(dir, 'note.md');
   const calls = [];
   fs.writeFileSync(file, '# Claim\nA bounded claim', 'utf8');
