@@ -78,7 +78,7 @@ test('yaml-adapter: accepts indicator characters in plain and block scalars', ()
 });
 
 test('yaml-adapter: aggregate budget failure is atomic before learning', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-atomic-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-atomic-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'a.yaml'), 'a: alpha\n', 'utf8');
   fs.writeFileSync(path.join(dir, 'b.yaml'), 'b: beta\n', 'utf8');
@@ -95,7 +95,7 @@ test('yaml-adapter: aggregate budget failure is atomic before learning', (t) => 
 });
 
 test('yaml-adapter: pre-read file byte budget rejects the batch', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-bytes-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-yaml-bytes-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'large.yaml'), 'claim: too-large\n', 'utf8');
 
@@ -106,7 +106,7 @@ test('yaml-adapter: pre-read file byte budget rejects the batch', (t) => {
 });
 
 test('yaml-adapter: listYamlFiles and ingestYaml work recursively across .yaml and .yml', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-')));
   const nested = path.join(dir, 'config');
   fs.mkdirSync(nested, { recursive: true });
   const f1 = path.join(dir, 'root.yaml');
@@ -130,7 +130,7 @@ test('yaml-adapter: listYamlFiles and ingestYaml work recursively across .yaml a
 });
 
 test('yaml-adapter: ingestYaml reports parse errors without throwing', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-err-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-err-')));
   const bad = path.join(dir, 'broken.yaml');
   fs.writeFileSync(bad, 'key: [unclosed', 'utf8');
 
@@ -145,8 +145,8 @@ test('yaml-adapter: ingestYaml reports parse errors without throwing', () => {
 });
 
 test('yaml-adapter: rejects traversal and absolute paths outside root', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-root-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-outside-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-root-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-outside-')));
   const inside = path.join(dir, 'inside.yaml');
   const outside = path.join(outsideDir, 'outside.yaml');
   fs.writeFileSync(inside, yaml.dump({ a: 'safe' }), 'utf8');
@@ -169,8 +169,8 @@ test('yaml-adapter: rejects traversal and absolute paths outside root', () => {
 });
 
 test('yaml-adapter: rejects symlink escape when supported', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-link-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-link-out-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-link-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-link-out-')));
   const outside = path.join(outsideDir, 'escape.yaml');
   const linkPath = path.join(dir, 'escape.yaml');
   fs.writeFileSync(outside, yaml.dump({ a: 'secret' }), 'utf8');
@@ -192,7 +192,7 @@ test('yaml-adapter: rejects symlink escape when supported', () => {
 });
 
 test('yaml-adapter: ingestAndLearn forwards provenance per entry', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-learn-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-yaml-learn-')));
   const file = path.join(dir, 'note.yaml');
   const calls = [];
   fs.writeFileSync(file, yaml.dump({ claim: 'A bounded claim' }), 'utf8');

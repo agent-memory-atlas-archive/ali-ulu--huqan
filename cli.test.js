@@ -19,7 +19,7 @@ process.once('exit', () => {
 function freshCLI(kernelOpts = {}) {
   const usesDefaultPersistence = !kernelOpts.memoryPath && !kernelOpts.dbPath && kernelOpts.useSQLite === undefined;
   const tempDir = usesDefaultPersistence
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-test-'))
+    ? fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-test-')))
     : null;
   if (tempDir) testPersistenceDirs.add(tempDir);
   const isolatedDefaults = tempDir
@@ -279,7 +279,7 @@ describe('CLI - Komut Çalıştırma', () => {
 
   it('execute: yükle komutu learnDocument çağrısına cli provenance geçirir', () => {
     const cli = freshCLI();
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-upload-'));
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-upload-')));
     const filePath = path.join(tmpDir, 'notes.txt');
     fs.writeFileSync(filePath, 'Köpek hayvandır.\n');
     const calls = [];
@@ -303,7 +303,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('execute: durum komutu istatistik gösterir', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-status-'));
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-status-')));
     const cli = new CLI({
       kernel: {
         memoryPath: path.join(tmpDir, 'memory.json'),
@@ -498,7 +498,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('execute: backup ve restore komutlari Kernel persistence seamlerini kullanir', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-backup-'));
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-backup-')));
     const memoryPath = path.join(tmpDir, 'custom-state.json');
     const derivedDbPath = path.join(tmpDir, 'custom-state.db');
     const independentDbPath = path.join(tmpDir, 'independent.db');
@@ -570,7 +570,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('backup options resolve default persistence paths inside isolated cwd', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-default-paths-'));
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-default-paths-')));
     const previousCwd = process.cwd();
     const envKeys = ['AXIOM_MEMORY_PATH', 'AXIOM_DB_PATH', 'AXIOM_BACKUP_DIR'];
     const previousEnv = new Map(envKeys.map(key => [key, {
@@ -609,7 +609,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('backup options use only the Kernel persistence descriptor', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-descriptor-'));
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-descriptor-')));
     const cli = new CLI({
       kernel: {
         noLoad: true,
@@ -653,7 +653,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('restore propagates the exact Kernel reload error without direct Graph access', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-restore-error-'));
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-cli-restore-error-')));
     const memoryPath = path.join(tmpDir, 'memory.json');
     const cli = new CLI({
       kernel: {
@@ -801,7 +801,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('execute: ajan shows checkpoint details when v3 agent is enabled', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-v3-test-'));
+    const tempDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-v3-test-')));
     const cli = new CLI({
       kernel: { noLoad: true, useSQLite: false, version: 'v2', memoryPath: path.join(tempDir, 'memory.json') },
       agentVersion: 'v3',
@@ -866,7 +866,7 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 });
 async function withIsolatedInteractiveCLI(run) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-lifecycle-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-lifecycle-')));
   const previousCwd = process.cwd();
   let cli;
   process.chdir(root);

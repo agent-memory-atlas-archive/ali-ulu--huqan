@@ -47,7 +47,7 @@ function writeFixture(dir, name, pageTexts) {
 }
 
 test('pdf-adapter: parsePdf extracts text per non-empty page', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-')));
   try {
     const file = writeFixture(dir, 'two-page.pdf', ['Hello PDF World', 'Second page text']);
     const buffer = fs.readFileSync(file);
@@ -69,7 +69,7 @@ test('pdf-adapter: parsePdf rejects a non-PDF buffer', async () => {
 });
 
 test('pdf-adapter: enforces input, page and extracted-output budgets', async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pdf-budget-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pdf-budget-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = writeFixture(dir, 'bounded.pdf', ['first page', 'second page']);
   const buffer = fs.readFileSync(file);
@@ -89,7 +89,7 @@ test('pdf-adapter: enforces input, page and extracted-output budgets', async (t)
 });
 
 test('pdf-adapter: aggregate budget failure is atomic before learning', async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pdf-atomic-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pdf-atomic-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   writeFixture(dir, 'a.pdf', ['alpha text']);
   writeFixture(dir, 'b.pdf', ['beta text']);
@@ -106,7 +106,7 @@ test('pdf-adapter: aggregate budget failure is atomic before learning', async (t
 });
 
 test('pdf-adapter: listPdfFiles and ingestPdf work recursively', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-list-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-list-')));
   const nested = path.join(dir, 'docs');
   fs.mkdirSync(nested, { recursive: true });
   writeFixture(dir, 'root.pdf', ['Root page']);
@@ -127,7 +127,7 @@ test('pdf-adapter: listPdfFiles and ingestPdf work recursively', async () => {
 });
 
 test('pdf-adapter: ingestPdf reports parse errors without throwing', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-err-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-err-')));
   const bad = path.join(dir, 'broken.pdf');
   fs.writeFileSync(bad, 'not a real pdf', 'utf8');
 
@@ -142,8 +142,8 @@ test('pdf-adapter: ingestPdf reports parse errors without throwing', async () =>
 });
 
 test('pdf-adapter: rejects traversal and absolute paths outside root', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-root-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-outside-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-root-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-outside-')));
   writeFixture(dir, 'inside.pdf', ['safe']);
   writeFixture(outsideDir, 'outside.pdf', ['secret']);
 
@@ -167,8 +167,8 @@ test('pdf-adapter: rejects traversal and absolute paths outside root', () => {
 });
 
 test('pdf-adapter: rejects symlink escape when supported', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-link-'));
-  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-link-out-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-link-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-link-out-')));
   const outside = writeFixture(outsideDir, 'escape.pdf', ['secret']);
   const linkPath = path.join(dir, 'escape.pdf');
 
@@ -189,7 +189,7 @@ test('pdf-adapter: rejects symlink escape when supported', () => {
 });
 
 test('pdf-adapter: ingestAndLearn forwards provenance per page', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-learn-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-pdf-learn-')));
   const calls = [];
   writeFixture(dir, 'note.pdf', ['A bounded claim']);
   const file = path.join(dir, 'note.pdf');
