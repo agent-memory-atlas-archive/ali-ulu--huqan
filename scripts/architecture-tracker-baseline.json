@@ -323,13 +323,6 @@
       "lines": 741,
       "signals": []
     },
-    "mcpServer.js": {
-      "band": "recorded",
-      "lines": 788,
-      "signals": [
-        "FANOUT:34"
-      ]
-    },
     "plugin.js": {
       "band": "recorded",
       "lines": 728,
