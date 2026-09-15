@@ -170,7 +170,14 @@ test('a2a route: AB5 review stops before effect and replay reservation', async (
       response.body.receiptMetadata.crossAgentAggregation.signal,
       'cross_agent_decision_contradiction',
     );
-    assert.equal(response.body.receiptMetadata.crossAgentAggregation.aggregate_risk_score, 50);
+    // The receiver side is its own AB5 firewall score (0.55 on 0-1), not the
+    // decision table's review=50 (#2505).
+    const aggregation = response.body.receiptMetadata.crossAgentAggregation;
+    assert.equal(aggregation.aggregate_risk_score, 55);
+    assert.equal(aggregation.receiver.risk_score, 55);
+    assert.equal(aggregation.receiver.risk_source, 'receiver_firewall_score');
+    assert.equal(aggregation.delegated_ceiling.enforced, false);
+    assert.equal(aggregation.delegated_ceiling.status, 'computed');
     assert.equal(response.body.effect, undefined);
     assert.equal(response.body.taskId, undefined);
   }
