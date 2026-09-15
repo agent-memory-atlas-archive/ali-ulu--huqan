@@ -108,7 +108,15 @@ test('readReceiptHistory marks a history it had to cut, without an enumerable fi
   assert.equal(long.truncated, true);
   assert.equal(Object.keys(long).includes('truncated'), false);
   assert.equal(readReceiptHistory({ receipts: [{}] }).truncated, false);
-  assert.equal(readReceiptHistory({ path: path.join(os.tmpdir(), `huqan-missing-${process.pid}.jsonl`) }).truncated, false);
+  const fs = require('node:fs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-receipt-missing-'));
+  try {
+    const missing = readReceiptHistory({ path: path.join(root, 'missing.jsonl') });
+    assert.deepEqual(missing, []);
+    assert.equal(missing.truncated, false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 function guard(receipts, extraOptions = {}) {
