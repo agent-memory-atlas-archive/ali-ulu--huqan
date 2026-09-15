@@ -128,10 +128,22 @@ describe('#1185 chain traversal matches the scan it replaced', () => {
 });
 
 describe('#1185 chain traversal is bounded', () => {
+  // Indexed lookups: makeGraph's filter scans every edge per call, so a
+  // fan-out of N visited nodes costs N^2 in the stub itself and the growth
+  // test below would measure the stub, not the traversal.
   function wideGraph(fanout) {
-    const edges = [];
-    for (let i = 0; i < fanout; i += 1) edges.push(edge('hub', 't' + i));
-    return makeGraph(edges);
+    const out = new Map();
+    const inn = new Map();
+    for (let i = 0; i < fanout; i += 1) {
+      const e = edge('hub', 't' + i);
+      if (!out.has(e.from)) out.set(e.from, []);
+      out.get(e.from).push(e);
+      inn.set(e.to, [e]);
+    }
+    return {
+      getEdges: (id) => out.get(id) || [],
+      getInEdges: (id) => inn.get(id) || [],
+    };
   }
 
   it('reports completion when it finishes within budget', () => {
@@ -175,11 +187,16 @@ describe('#1185 chain traversal is bounded', () => {
   });
 
   it('fan-out cost is no longer quadratic', () => {
+    // Best of three: a scheduler pause on a shared runner only ever adds time.
     const time = (fanout) => {
       const graph = wideGraph(fanout);
-      const started = process.hrtime.bigint();
-      forwardChain(graph, 'hub', [], new Set(), 4, 'default');
-      return Number(process.hrtime.bigint() - started) / 1e6;
+      let best = Infinity;
+      for (let run = 0; run < 3; run += 1) {
+        const started = process.hrtime.bigint();
+        forwardChain(graph, 'hub', [], new Set(), 4, 'default');
+        best = Math.min(best, Number(process.hrtime.bigint() - started) / 1e6);
+      }
+      return best;
     };
 
     time(500); // warm up
