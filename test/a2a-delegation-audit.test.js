@@ -32,7 +32,7 @@ const {
 } = require('../lib/a2a/delegation-audit-log');
 
 function makeSandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-audit-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-audit-'));
   const replayDirectory = path.join(root, 'replay');
   fs.mkdirSync(replayDirectory);
   const fixture = buildFixture(CANONICAL_WORKSPACE);
@@ -140,7 +140,7 @@ test('delegation audit: a body that never named a delegator writes no row', asyn
 });
 
 test('delegation audit: reads are bounded and report rows they could not parse', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-audit-read-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-audit-read-'));
   const log = createA2aDelegationAuditLog(root);
 
   for (let index = 0; index < 5; index += 1) {
@@ -176,7 +176,7 @@ test('delegation audit: reads are bounded and report rows they could not parse',
 });
 
 test('delegation audit: recording never throws, so it cannot fail an exchange', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-audit-fail-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-audit-fail-'));
   const log = createA2aDelegationAuditLog(root);
   fs.rmSync(root, { recursive: true, force: true });
 

@@ -38,7 +38,9 @@ const {
 } = require('../lib/a2a/retry-classification');
 
 function makeSandbox() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-retry-'));
+  // Under the real temp path: on macOS os.tmpdir() is below /var -> /private/var,
+  // and the A2A stores deliberately refuse a path with a symlinked ancestor.
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-retry-'));
   const replayDirectory = path.join(root, 'replay');
   fs.mkdirSync(replayDirectory);
   const fixture = buildFixture(CANONICAL_WORKSPACE);
