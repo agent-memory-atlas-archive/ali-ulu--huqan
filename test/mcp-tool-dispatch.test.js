@@ -138,7 +138,11 @@ async function digestsByTool() {
 }
 // harness:end
 
-// Recorded on main, before the change.
+// Recorded on main, before the change. #2505 re-recorded fractal-learn,
+// self-evolve and ingest_execute: those handlers pass the gate to the recorded
+// delegate call, and the gate's risk level is now the taxonomy band of its
+// score (review at 80: MEDIUM -> CRITICAL). That one field is the only
+// difference; the other twenty digests are unchanged.
 const GOLDEN = {
   'huqan.learn': 'e0edb52a102cb075b64861d689bd7ffa09f64325846033e3bad379cda46eff7f',
   'huqan.ask': 'ad49c39a897ce936e3558e2cb3ee7d1af721dd380bbd92da3c913e11fa5df795',
@@ -151,8 +155,8 @@ const GOLDEN = {
   'huqan.reason': 'a3cfb1b72319c626258724fe87e1af8dd968614d9123835d2bf8041b896695b3',
   'huqan.compare': '93e037979e4fd8e61ed75fd4e01242081501b8f3fc4445c47005e5d2a72be761',
   'huqan.dream': '432937e74cf96220e0dac5caba33dac1991a943731740adefa621dc5fe45c48e',
-  'huqan.fractal-learn': '83d9813f09835facdb6bad8b2b027b210b471a2246d165914d1438327793b204',
-  'huqan.self-evolve': '70f75006cd455122e166753b27d8c731d15acda927145b3c1358e18b90e1fa3d',
+  'huqan.fractal-learn': '8d3731022fce6f059ac948ed8e895da83d2f11c4b6bd2530778fd6c78f93375b',
+  'huqan.self-evolve': 'f2e83da098a902a017c9cc86cdd24b8341bf9d9f39629d95a3b77d807de34f6f',
   'huqan.advocate': '8979354f31d03d0614f11cfbed314691a80017e07743c3786b358a579bdcca46',
   'huqan.web_research': '1ba027fa57be28a656a49b30dbca897c8031a0c2b894ece4a085c168febf6e94',
   'huqan.search': '2694d2290ddd2b65e074a5590c158fc686914d332a91b5606ad0ebceb0022146',
@@ -162,7 +166,7 @@ const GOLDEN = {
   'huqan.audit': 'c0bfd55ce7b9ce7735f8d46685568f52962c93e682790e03b0c3f7da111427d7',
   'huqan.ingest_preview': 'c865da9cf3eaed67fa72e57f4f2ec765889a0e4a23c014f56c3f2a16241ed719',
   'huqan.ingest_status': '5eb079bc6a66e3237af883639d70d66c32a05c9458a1dae99636aee0f32dc2d3',
-  'huqan.ingest_execute': 'c6c2fd0dd97026b600e761aa7cc7d4c7db659ab4fbfa79456783a3d9d2bf17ca',
+  'huqan.ingest_execute': 'f9926414c4d0807dd5afa0bd435b56adba9087e481870ac6861340edb8645189',
 };
 
 describe('MCP tool dispatch (unchanged)', () => {

@@ -98,6 +98,28 @@ test('the external action guard converts a finding score with its gate scale, no
   assert.equal(score({ gate: 'shell-side-effect' }), 10);
 });
 
+test('riskLevelForScore uses the action-taxonomy bands at their exact boundaries', () => {
+  const { riskLevelForScore, RISK_LEVEL_BANDS } = require('../lib/risk-scale');
+  const expected = [[0, 'low'], [24, 'low'], [25, 'medium'], [49, 'medium'], [50, 'high'], [74, 'high'], [75, 'critical'], [100, 'critical']];
+  for (const [score, level] of expected) assert.equal(riskLevelForScore(score), level, `score ${score}`);
+  assert.equal(riskLevelForScore(74.4), 'high');
+  assert.equal(riskLevelForScore(74.6), 'critical', 'the score is rounded onto the integer scale first');
+  assert.equal(riskLevelForScore(250), 'critical');
+  assert.equal(riskLevelForScore(-5), 'low');
+  assert.ok(Object.isFrozen(RISK_LEVEL_BANDS));
+});
+
+test('riskLevelForScore spells the level in the caller vocabulary and is null without a score', () => {
+  const { riskLevelForScore } = require('../lib/risk-scale');
+  const upper = { LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH', CRITICAL: 'CRITICAL' };
+  assert.equal(riskLevelForScore(80, upper), 'CRITICAL');
+  assert.equal(riskLevelForScore(30, upper), 'MEDIUM');
+  for (const value of [undefined, null, '', 'high', Number.NaN]) {
+    assert.equal(riskLevelForScore(value), null, String(value));
+    assert.equal(riskLevelForScore(value, upper), null, String(value));
+  }
+});
+
 test('every gate the MCP adapter and the external action guard name has a declared scale', () => {
   const root = path.join(__dirname, '..');
   for (const file of ['lib/mcp-gate-adapter.js', 'lib/external-action-guard.js', 'lib/external-action-egress-gates.js']) {

@@ -40,7 +40,9 @@ function withStubs(next, fn) {
 const BENIGN_LEARN = { tool: 'huqan.learn', args: { text: 'water boils at 100 degrees' }, metadata: {} };
 const BENIGN_AGENT = { tool: 'huqan.agent', args: { goal: 'summarise the repo' }, metadata: {} };
 
-test('an AB2 block reports its 0-1 risk on the 0-100 scale', () => {
+// Each block's level is the action-taxonomy band of its converted score, not
+// the sub-gate's own label: 90 is critical, 42 medium, 70 high (#2505).
+test('an AB2 block reports its 0-1 risk on the 0-100 scale, levelled by that score', () => {
   const result = withStubs({
     ab2: {
       decision: toolCallGate.TOOL_GATE_DECISIONS.block,
@@ -51,7 +53,7 @@ test('an AB2 block reports its 0-1 risk on the 0-100 scale', () => {
     },
   }, () => evaluateMcpGate(BENIGN_LEARN));
   assert.equal(result.decision, MCP_GATE_DECISIONS.block);
-  assert.deepEqual(result.risk, { level: 'high', score: 90, category: 'tool-call' });
+  assert.deepEqual(result.risk, { level: 'CRITICAL', score: 90, category: 'tool-call' });
 });
 
 test('an AB2 block without a risk object keeps the adapter default', () => {
@@ -62,7 +64,7 @@ test('an AB2 block without a risk object keeps the adapter default', () => {
   assert.equal(result.risk.score, 80);
 });
 
-test('an AB4 block reports its 0-1 risk on the 0-100 scale', () => {
+test('an AB4 block reports its 0-1 risk on the 0-100 scale, levelled by that score', () => {
   const result = withStubs({
     ab4: {
       decision: memoryMutationGate.MEMORY_MUTATION_GATE_DECISIONS.BLOCK,
@@ -72,10 +74,10 @@ test('an AB4 block reports its 0-1 risk on the 0-100 scale', () => {
     },
   }, () => evaluateMcpGate(BENIGN_LEARN));
   assert.equal(result.decision, MCP_GATE_DECISIONS.block);
-  assert.deepEqual(result.risk, { level: 'critical', score: 42, categories: ['graph'] });
+  assert.deepEqual(result.risk, { level: 'MEDIUM', score: 42, categories: ['graph'] });
 });
 
-test('an AB5 block, and the AB5 finding it records, report 0-1 risk on the 0-100 scale', () => {
+test('an AB5 block, and the AB5 finding it records, report 0-1 risk on the 0-100 scale, levelled by that score', () => {
   const result = withStubs({
     ab5: {
       decision: automationSafetyGate.AUTOMATION_SAFETY_DECISIONS.BLOCK,
@@ -87,7 +89,7 @@ test('an AB5 block, and the AB5 finding it records, report 0-1 risk on the 0-100
     },
   }, () => evaluateMcpGate(BENIGN_AGENT));
   assert.equal(result.decision, MCP_GATE_DECISIONS.block);
-  assert.deepEqual(result.risk, { level: 'critical', score: 70, categories: ['force_push'] });
+  assert.deepEqual(result.risk, { level: 'HIGH', score: 70, categories: ['force_push'] });
   const finding = result.findings.find((item) => item.gate === 'AB5');
   assert.equal(finding.risk.score, 70);
 });
