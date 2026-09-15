@@ -1,9 +1,11 @@
-const { assertBootEnvironment, readCompatibleEnvironmentVariable, reportBootConflict } = require('./lib/environment-compat');
+const { assertBootEnvironment, reportBootConflict } = require('./lib/environment-compat');
 
-const fs = require('fs');
+// The HUQAN MCP server entrypoint: it builds the runtime a server needs and
+// wires the pieces together. The tool list, operator authorisation, dispatch,
+// gate refusals, handlers, JSON-RPC methods and the stdio transport each live
+// in lib/mcp/ (#2142).
+
 const path = require('path');
-const crypto = require('crypto');
-const { constantTimeEqual } = require('./requestGuards');
 const { createProcessFailureHandlers, failureCodeFor } = require('./lib/http/process-failure-handlers');
 const { writeStructuredLog } = require('./lib/http/structured-log');
 const {
@@ -14,143 +16,28 @@ const {
 const { createDurableCapabilityNonceStore, resolveCapabilityNonceDirectory } = require('./lib/mcp-capability-nonce-store');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
 const { createAgent } = require('./agentRuntime');
-const { evaluateMcpGate, MCP_GATE_DECISIONS } = require('./lib/mcp-gate-adapter');
-const { emitGateTelemetry } = require('./lib/gate-telemetry');
-const { applyHumanApprovalToggle } = require('./lib/human-approval-toggle');
-const { scrubSecrets } = require('./lib/secret-scrub-gate');
-const { withMcpToolVerdictSurface } = require('./lib/mcp/response-builders');
-const {
-  CANONICAL_MCP_TOOL_NAMES,
-  LEGACY_MCP_TOOL_NAMES,
-  canonicalMcpToolName,
-  isLegacyMcpToolName,
-  mcpToolDeprecationNotice,
-  withMcpToolDeprecationSurface,
-} = require('./lib/mcp-tool-names');
-const { parseJsonObject } = require('./lib/json-object');
-const {
-  formatApprovalRecord,
-  listPersistentApprovals,
-  countPersistentApprovals,
-  countUnresolvedApprovals,
-} = require('./lib/mcp-approval-views');
-const pkg = require('./package.json');
+const { CANONICAL_MCP_TOOL_NAMES, LEGACY_MCP_TOOL_NAMES } = require('./lib/mcp-tool-names');
 const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
-const { VERIFY_ENVELOPE_OUTPUT_SCHEMA } = require('./lib/mcp-tool-data-schemas');
-const { TOOL_SCHEMAS } = require('./lib/mcp-tool-catalog');
-const { mcpWorkflowMetadata } = require('./lib/workflow-contract');
-const { executeMcpVerify, executeMcpReadWorkflow } = require('./lib/mcp/read-workflow-tools');
-const { buildIngestWorkflowPreview } = require('./lib/ingest-workflow-preview');
-const { readIngestRunStatus } = require('./lib/mcp-ingest-status-tool');
-const { buildMcpIngestExecuteResult } = require('./lib/mcp-ingest-execute-tool');
-const { executeMcpAgentContinuation } = require('./lib/mcp-agent-continuation');
+const { sanitizeToolArgsForStorage } = require('./lib/mcp-input-sanitizers');
+const { createKernelFromEnv, createApprovalStoreFromKernel } = require('./lib/mcp-approval-store');
+const { recordInternalError } = require('./lib/mcp-envelope-format');
 const { createMcpServerCloser } = require('./lib/mcp/server-lifecycle');
-function publishMcpWorkflowContract(tool) {
-  const workflow = mcpWorkflowMetadata(tool.name);
-  if (!workflow) return tool;
-  return {
-    ...tool,
-    inputSchema: { $id: `huqan.workflow.${workflow.workflowId}.input.${workflow.version}`, ...tool.inputSchema },
-    outputSchema: { $id: `huqan.workflow.${workflow.workflowId}.output.${workflow.version}`, ...tool.outputSchema },
-    metadata: { workflow },
-  };
-}
-const WORKFLOW_TOOL_SCHEMAS = Object.freeze(TOOL_SCHEMAS.map(publishMcpWorkflowContract));
-const OPERATOR_TOOL_SCHEMAS = Object.freeze(
-  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => ['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name)),
-);
-const MODEL_VISIBLE_TOOL_SCHEMAS = Object.freeze(
-  WORKFLOW_TOOL_SCHEMAS.filter(({ name }) => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name)),
-);
+const {
+  TOOL_SCHEMAS,
+  WORKFLOW_TOOL_SCHEMAS,
+  OPERATOR_TOOL_SCHEMAS,
+  MODEL_VISIBLE_TOOL_SCHEMAS,
+} = require('./lib/mcp/tool-surface');
+const { operatorCapabilityBinding } = require('./lib/mcp/operator-authorization');
+const { createTransientAgentRunner } = require('./lib/mcp/transient-agent');
+const { createMcpToolDispatch } = require('./lib/mcp/tool-dispatch');
+const { PROTOCOL_VERSION, SERVER_NAME, createJsonRpcHandler } = require('./lib/mcp/json-rpc-handler');
+const { MCP_MAX_FRAME_BYTES, MCP_MAX_JSON_DEPTH, MCP_MAX_JSON_VALUES, serveStdio } = require('./lib/mcp/stdio-transport');
 
-const PROTOCOL_VERSION = '2025-06-18';
-// RFC-001 decision 1: HUQAN is the canonical product identity. This is the
-// name a Claude Desktop / Cursor user sees for the server itself.
-const SERVER_NAME = 'huqan';
-const SERVER_VERSION = pkg.version;
-const MCP_MAX_FRAME_BYTES = 64 * 1024;
-const MCP_MAX_JSON_DEPTH = 32;
-const MCP_MAX_JSON_VALUES = 2048;
 const MCP_OPERATOR_TOKEN_ENV = 'HUQAN_MCP_OPERATOR_TOKEN';
 
-const {
-  MCP_MAX_TEXT,
-  MCP_MAX_GOAL,
-  MCP_MAX_SHORT,
-  sanitizeMcpString,
-  boundedMcpInteger,
-  sanitizeMcpApprovalDecision,
-  sanitizeToolArgsForStorage,
-} = require('./lib/mcp-input-sanitizers');
-const {
-  createKernelFromEnv,
-  createApprovalStoreFromKernel,
-  saveMcpApproval,
-} = require('./lib/mcp-approval-store');
-const {
-  toToolResult,
-  recordInternalError,
-} = require('./lib/mcp-envelope-format');
-const {
-  describeConfigurationError,
-  configurationErrorEnvelope,
-  recordConfigurationError,
-} = require('./lib/mcp-configuration-errors');
-
-/**
- * A failed `tools/call`, answered as either a configuration limit or a fault.
- *
- * A deterministic misconfiguration used to be indistinguishable from a crash
- * here: both became `INTERNAL_ERROR (ref: …)`, and the sentence that would fix
- * the former reached only the server's own stderr. See
- * lib/mcp-configuration-errors.js for which codes qualify and why relaying
- * them does not reopen #413.
- */
-function toolCallFailure(err) {
-  const configuration = describeConfigurationError(err);
-  if (configuration) {
-    recordConfigurationError('tools/call', configuration.code);
-    return toToolResult(configurationErrorEnvelope(configuration));
-  }
-  const errorRef = recordInternalError('tools/call', err);
-  return { content: [{ type: 'text', text: `INTERNAL_ERROR (ref: ${errorRef})` }], isError: true };
-}
-
-function operatorCapabilityBinding(name, args) {
-  return capabilityBinding({
-    tool: name,
-    workspaceId: String(args.workspaceId || 'default'),
-    approvalId: name === 'huqan.approve' ? String(args.approvalId || '') : null,
-    runId: name === 'huqan.agent_resume' ? String(args.runId || args.checkpointId || '') : null,
-    arguments: args,
-  });
-}
-
-function isMcpOperatorAuthorized(configuredToken, presentedToken) {
-  if (typeof configuredToken !== 'string' || typeof presentedToken !== 'string' || !configuredToken || !presentedToken) return false;
-  return constantTimeEqual(configuredToken, presentedToken);
-}
-
-function operatorCapabilityAuthorized(runtime, name, args, presentedCapability, presentedToken) {
-  const secret = runtime?.operatorSecret;
-  if (typeof secret === 'string' && secret && typeof presentedCapability === 'string') {
-    const binding = operatorCapabilityBinding(name, args);
-    const result = verifyMcpOperatorCapability({
-      secret,
-      capability: presentedCapability,
-      expected: binding,
-      nonceStore: runtime.operatorCapabilityNonces,
-    });
-    return result.ok === true;
-  }
-  // Deprecated in-process compatibility only. createServer() never supplies
-  // operatorToken to this seam, so a network MCP caller cannot use the static
-  // credential path. CLI and HTTP production callers use scoped capabilities.
-  if (typeof runtime?.operatorToken === 'string' && typeof presentedToken === 'string') {
-    return isMcpOperatorAuthorized(runtime.operatorToken, presentedToken);
-  }
-  return false;
-}
+const withTransientAgent = createTransientAgentRunner(createAgent);
+const { callTool, executeReadOnlyDryRun } = createMcpToolDispatch({ withTransientAgent });
 
 function createServer(kernelOrOptions = {}) {
   const options = kernelOrOptions && typeof kernelOrOptions === 'object' && typeof kernelOrOptions.learn === 'function'
@@ -184,562 +71,41 @@ function createServer(kernelOrOptions = {}) {
   const close = createMcpServerCloser({ kernel, approvalStore, operatorCapabilityNonces,
     ownsKernel: !options.kernel, ownsApprovalStore: !Object.hasOwn(options, 'approvalStore'),
     ownsOperatorCapabilityNonces: !Object.hasOwn(options, 'operatorCapabilityNonces') });
+  const handleRequest = createJsonRpcHandler({
+    callTool: params => callTool(kernel, params, {
+      approvalStore,
+      operatorSecret: operatorToken,
+      operatorCapabilityNonces,
+      trustEvidenceLedger: options.trustEvidenceLedger || null,
+      ensureRuntime: ensureCompanyRuntime,
+      humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
+      ...(Object.hasOwn(options, 'humanOversightRequesterContext')
+        ? { humanOversightRequesterContext: options.humanOversightRequesterContext }
+        : {}),
+      ...(Object.hasOwn(options, 'humanOversightApproverContext')
+        ? { humanOversightApproverContext: options.humanOversightApproverContext }
+        : {}),
+      ...(Object.hasOwn(options, 'humanOversightContextResolver')
+        ? { humanOversightContextResolver: options.humanOversightContextResolver }
+        : {}),
+      agentIdentityRuntime: Object.hasOwn(options, 'agentIdentityRuntime')
+        ? options.agentIdentityRuntime
+        : null,
+    }),
+  });
   return {
     kernel,
     approvalStore,
     operatorToken,
     operatorCapabilityNonces,
     close,
-    handleRequest(message) {
-      if (!message || typeof message !== 'object') {
-        return { jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' } };
-      }
-
-      const { id, method, params } = message;
-
-      if (method === 'initialize') {
-        return {
-          jsonrpc: '2.0',
-          id,
-          result: {
-            protocolVersion: PROTOCOL_VERSION,
-            capabilities: { tools: { listChanged: false } },
-            serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
-          },
-        };
-      }
-
-      if (method === 'notifications/initialized') {
-        return null;
-      }
-
-      if (method === 'ping') {
-        return { jsonrpc: '2.0', id, result: {} };
-      }
-
-      if (method === 'tools/list') {
-        return { jsonrpc: '2.0', id, result: { tools: MODEL_VISIBLE_TOOL_SCHEMAS } };
-      }
-
-      if (method === 'tools/call') {
-        try {
-          const result = callTool(kernel, params, {
-            approvalStore,
-            operatorSecret: operatorToken,
-            operatorCapabilityNonces,
-            trustEvidenceLedger: options.trustEvidenceLedger || null,
-            ensureRuntime: ensureCompanyRuntime,
-            humanOversightApprovalRuntime: options.humanOversightApprovalRuntime || null,
-            ...(Object.hasOwn(options, 'humanOversightRequesterContext')
-              ? { humanOversightRequesterContext: options.humanOversightRequesterContext }
-              : {}),
-            ...(Object.hasOwn(options, 'humanOversightApproverContext')
-              ? { humanOversightApproverContext: options.humanOversightApproverContext }
-              : {}),
-            ...(Object.hasOwn(options, 'humanOversightContextResolver')
-              ? { humanOversightContextResolver: options.humanOversightContextResolver }
-              : {}),
-            agentIdentityRuntime: Object.hasOwn(options, 'agentIdentityRuntime')
-              ? options.agentIdentityRuntime
-              : null,
-          });
-          if (result && typeof result.then === 'function') {
-            return result.then(
-              value => ({ jsonrpc: '2.0', id, result: toToolResult(value) }),
-              err => ({ jsonrpc: '2.0', id, result: toolCallFailure(err) }),
-            );
-          }
-          return { jsonrpc: '2.0', id, result: toToolResult(result) };
-        } catch (err) {
-          return { jsonrpc: '2.0', id, result: toolCallFailure(err) };
-        }
-      }
-
-      if (method === 'shutdown') {
-        return { jsonrpc: '2.0', id, result: {} };
-      }
-
-      return { jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } };
-    },
+    handleRequest,
   };
-}
-
-function failApprovalDecision(code, message, meta = {}) {
-  return {
-    ok: false,
-    type: 'approval',
-    data: null,
-    evidence: [],
-    error: { code, message },
-    meta,
-  };
-}
-
-const {
-  createMcpApprovalDecisionHandler,
-  getHumanOversightRuntime,
-  createMcpOversightCase,
-} = require('./lib/mcp-approval-decision-handler');
-const handleMcpApprovalDecision = createMcpApprovalDecisionHandler({ failApprovalDecision });
-
-/**
- * Run `callback` with a throwaway agent and close that agent's storage
- * afterwards.
- *
- * The close must wait for an async callback to settle (#409). A plain
- * `finally` runs as soon as the callback *returns* -- for a callback that
- * returns a promise that is the moment the promise is created, not the moment
- * the work finishes, so storage was closed out from under the in-flight
- * operation and any later use hit a closed handle.
- *
- * Every current callback (agent.plan / agent.run / agent.inspectToolPolicy) is
- * synchronous, so this is a latent bug rather than an active one today. The
- * thenable branch below keeps it latent: if any of those ever becomes async,
- * the close follows the work instead of racing it.
- */
-function withTransientAgent(kernel, callback) {
-  const agent = createAgent({
-    kernel,
-    version: readCompatibleEnvironmentVariable('AGENT_VERSION'),
-  });
-  const closeStorage = () => {
-    try { agent?.storage?.close?.(); } catch (_) {}
-  };
-
-  let result;
-  try {
-    result = callback(agent);
-  } catch (error) {
-    closeStorage();
-    throw error;
-  }
-
-  if (result && typeof result.then === 'function') {
-    return result.then(
-      (value) => { closeStorage(); return value; },
-      (error) => { closeStorage(); throw error; },
-    );
-  }
-
-  closeStorage();
-  return result;
-}
-
-/**
- * RFC-001 reader half: accept both spellings, resolve to one handler.
- *
- * The requested name is canonicalized once, here, and every downstream
- * consumer — gate evaluation, approval persistence, dispatch, dry-run — sees
- * only the canonical `huqan.*` name. That is what makes "both names resolve to
- * the same handler" structural rather than a pair of parallel switch arms that
- * could drift.
- */
-function callTool(kernel, params = {}, runtime = {}) {
-  const safeParams = params && typeof params === 'object' ? params : {};
-  const requestedName = sanitizeMcpString(safeParams.name, MCP_MAX_SHORT);
-  const outcome = dispatchMcpTool(kernel, canonicalMcpToolName(requestedName), safeParams, runtime);
-  if (!isLegacyMcpToolName(requestedName)) return outcome;
-  if (outcome && typeof outcome.then === 'function') {
-    return outcome.then((value) => withMcpToolDeprecationSurface(value, requestedName));
-  }
-  return withMcpToolDeprecationSurface(outcome, requestedName);
-}
-
-/**
- * The verdict stamped on the operator-token tools, which bypass evaluateMcpGate.
- *
- * The elevated path itself is a design choice: the operator token is a stronger
- * credential than an ordinary MCP caller holds. What was wrong is what the
- * receipt said about it. The reason read `operator_authorized` beside a
- * `decision: 'allow'`, which is indistinguishable from a verdict the gates
- * produced -- so an auditor reading a stored receipt could not tell "the gates
- * evaluated this and allowed it" from "the gates were never consulted" (#1183).
- *
- * That distinction is the whole point of the receipt. It matters most for
- * `huqan.agent_resume`, which runs the real agent (`executeMcpAgentContinuation`
- * -> `agent.run(goal, { resume: true })`), while the same run started through
- * `huqan.agent` is classified `dry_run_only` after AB1/AB2/AB5/AB8/AB9/AB11.
- * The resumed run still passes agent.v3's own internal gates; what it skips is
- * this surface's evaluation, and now it says so.
- */
-const OPERATOR_AUTHORIZED_VERDICT = Object.freeze({
-  decision: 'allow',
-  reason: 'operator_authorized_gates_not_evaluated',
-  requiredReview: false,
-  gatesEvaluated: false,
-});
-
-// #2142: one handler per MCP tool; a new tool is a row, not a case. Handlers that
-// require a module lazily keep a block body so require-scan still sees it as deferred.
-const readWorkflowTool = ({ kernel, name, args, gate }) => executeMcpReadWorkflow({ kernel, name, args, gate });
-const MCP_TOOL_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
-  'huqan.learn': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.learn(sanitizeMcpString(args.text, MCP_MAX_TEXT), {
-    skipConflicts: args.skipConflicts !== false,
-    maxSentences: args.maxSentences,
-  }), name, args, gate),
-  'huqan.ask': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.ask(sanitizeMcpString(args.question)), name, args, gate),
-  'huqan.verify': ({ kernel, name, args, gate }) => executeMcpVerify({ kernel, name, args, gate }),
-  'huqan.plan': ({ kernel, name, args, gate }) => withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
-    agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), { maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8) }),
-    name, args, gate,
-  )),
-  'huqan.agent': ({ kernel, name, args, gate }) => withTransientAgent(kernel, async (agent) => withMcpToolVerdictSurface(
-    await agent.run(sanitizeMcpString(args.goal, MCP_MAX_GOAL), { maxSteps: boundedMcpInteger(args.maxSteps, 4, 1, 8) }),
-    name, args, gate,
-  )),
-  'huqan.policy': ({ kernel, name, args, gate }) => withTransientAgent(kernel, (agent) => withMcpToolVerdictSurface(
-    agent.inspectToolPolicy(sanitizeMcpString(args.tool), sanitizeMcpString(args.input || '', MCP_MAX_TEXT), { goal: sanitizeMcpString(args.goal, MCP_MAX_GOAL) }),
-    name, args, gate,
-  )),
-  'huqan.approval_detail': ({ kernel, name, args, gate, runtime }) => {
-    return require('./lib/mcp/approval-detail-tool').executeMcpApprovalDetail({ store: runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime), name, args, gate });
-  },
-  'huqan.approvals': ({ kernel, name, args, gate, runtime }) => {
-    const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-    const approvalWorkspaceId = sanitizeMcpString(args.workspaceId, MCP_MAX_SHORT) || 'default';
-    const approvalLimit = boundedMcpInteger(args.limit, 50, 1, 50);
-    const storedApprovals = listPersistentApprovals(approvalStore, approvalLimit, approvalWorkspaceId);
-    return withMcpToolVerdictSurface({
-      pendingCount: countPersistentApprovals(approvalStore, approvalWorkspaceId),
-      unresolvedCount: countUnresolvedApprovals(approvalStore, approvalWorkspaceId),
-      approvals: storedApprovals.slice(0, approvalLimit),
-    }, name, args, gate);
-  },
-  'huqan.reason': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.reason(sanitizeMcpString(args.subject)), name, args, gate),
-  'huqan.compare': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.compare(sanitizeMcpString(args.left), sanitizeMcpString(args.right)), name, args, gate),
-  'huqan.dream': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(kernel.dream({ depth: boundedMcpInteger(args.depth, 2, 1, 5) }), name, args, gate),
-  'huqan.fractal-learn': ({ kernel, name, args, gate }) => {
-    return require('./lib/mcp/fractal-learn-tool').executeMcpFractalLearn(kernel, name, args, gate);
-  },
-  'huqan.self-evolve': ({ kernel, name, args, gate }) => {
-    return require('./lib/mcp/self-evolve-tool').executeMcpSelfEvolve(kernel, name, args, gate);
-  },
-  'huqan.advocate': readWorkflowTool, 'huqan.web_research': readWorkflowTool, 'huqan.search': readWorkflowTool,
-  'huqan.trust_receipt': readWorkflowTool, 'huqan.trust_receipt_detail': readWorkflowTool, 'huqan.status': readWorkflowTool, 'huqan.audit': readWorkflowTool,
-  'huqan.ingest_preview': ({ kernel, name, args, gate }) => {
-    const preview = buildIngestWorkflowPreview(args);
-    const result = preview.ok
-      ? kernel.ok('ingest_preview', Object.fromEntries(Object.entries(preview).filter(([key]) => key !== 'ok')))
-      : kernel.fail('ingest_preview', preview.code || 'INGEST_PREVIEW_FAILED', preview.error || 'ingest preview failed');
-    return withMcpToolVerdictSurface(result, name, args, gate);
-  },
-  'huqan.ingest_status': ({ kernel, name, args, gate, runtime }) => withMcpToolVerdictSurface(readIngestRunStatus(kernel, args, runtime), name, args, gate),
-  'huqan.ingest_execute': ({ kernel, name, args, gate }) => withMcpToolVerdictSurface(buildMcpIngestExecuteResult(kernel, args, gate), name, args, gate),
-}));
-
-function dispatchMcpTool(kernel, name, safeParams, runtime = {}) {
-  const args = parseJsonObject(safeParams.arguments, {});
-
-  if (name === 'huqan.approve' || name === 'huqan.approvals' || name === 'huqan.approval_detail' || name === 'huqan.agent_resume') {
-    if (!operatorCapabilityAuthorized(runtime, name, args, safeParams.operatorCapability, safeParams.operatorToken)) {
-      return withMcpToolVerdictSurface(
-        failApprovalDecision(
-          'OPERATOR_AUTH_REQUIRED',
-          name === 'huqan.agent_resume'
-            // Not an approval operation, and saying so matters: the operator
-            // reading this needs to know which capability was demanded of them.
-            ? 'A scoped operator capability is required to resume an agent run.'
-            : 'A scoped operator capability is required for this MCP approval operation.',
-        ),
-        name,
-        args,
-        { decision: 'block', reason: 'operator_auth_required', requiredReview: false },
-      );
-    }
-    if (name === 'huqan.agent_resume') {
-      const continuation = withTransientAgent(kernel, agent => executeMcpAgentContinuation(agent, args));
-      return withMcpToolVerdictSurface(continuation, name, args, OPERATOR_AUTHORIZED_VERDICT);
-    }
-    if (name === 'huqan.approve') {
-      const approvalDecision = handleMcpApprovalDecision(kernel, args, runtime);
-      const projectDecision = (result) => withMcpToolVerdictSurface(
-        result,
-        name,
-        args,
-        OPERATOR_AUTHORIZED_VERDICT,
-      );
-      return approvalDecision && typeof approvalDecision.then === 'function'
-        ? approvalDecision.then(projectDecision)
-        : projectDecision(approvalDecision);
-    }
-  }
-
-  const gate = applyHumanApprovalToggle(evaluateMcpGate({ tool: name, args, metadata: {} }));
-  emitGateTelemetry(kernel, 'mcp-tool-call', { tool: name, decision: gate.decision, reason: gate.reason, findings: gate.findings, metadata: gate.metadata });
-
-  if (!gate.canExecute) {
-    if (gate.decision === 'review' || gate.requiredReview) {
-      const approvalStore = runtime.approvalStore || createApprovalStoreFromKernel(kernel, runtime);
-      const approval = saveMcpApproval(approvalStore, name, args, gate, {
-        oversightRequired: Boolean(getHumanOversightRuntime(runtime)) && name === 'huqan.learn',
-      });
-      const gateSurface = {
-        decision: gate.decision,
-        allowed: gate.allowed,
-        canExecute: gate.canExecute,
-        canDryRun: gate.canDryRun,
-        requiredReview: gate.requiredReview,
-        reason: gate.reason,
-        metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
-      };
-      // "Queued for review" is a claim about durable state. Without a stored
-      // approval there is no queue and no one to review it, so the caller is
-      // told that instead -- the mutation is blocked either way (#772).
-      if (approval.persisted !== true) {
-        return withMcpToolVerdictSurface({
-          ok: false,
-          gate: gateSurface,
-          approval,
-          error: {
-            code: 'REVIEW_NOT_PERSISTED',
-            reason: approval.notPersistedReason || 'approval_store_unavailable',
-            message: 'Tool call requires review, but no durable approval was recorded; nothing was queued and nothing executed.',
-          },
-          message: `Tool call blocked, review not persisted: ${gate.reason}`,
-        }, name, args, gate);
-      }
-      const oversightCase = createMcpOversightCase({
-        runtime,
-        approval,
-        toolName: name,
-        storedArgs: approval.context?.args || args,
-        gate,
-      });
-      const approvalSurface = oversightCase.enabled
-        ? { ...approval, oversight: oversightCase.summary || { caseId: '', status: 'unavailable' } }
-        : approval;
-      if (oversightCase.enabled && !oversightCase.ok) {
-        return withMcpToolVerdictSurface({
-          ok: false,
-          gate: gateSurface,
-          approval: approvalSurface,
-          error: {
-            code: 'REVIEW_CASE_NOT_PERSISTED',
-            reason: oversightCase.result?.reason || 'oversight_case_creation_failed',
-            message: 'Tool call requires Human Oversight, but no durable review case was recorded; nothing executed.',
-          },
-          message: 'Tool call blocked because the Human Oversight review case was not durably recorded.',
-        }, name, args, gate);
-      }
-      const ingestExecuteData = name === 'huqan.ingest_execute'
-        ? {
-          approval,
-          approvalId: approval.id || '',
-          // huqan.ingest_status requires `runId` and its schema describes it as
-          // "Run identifier returned by ingest execute" -- but this response
-          // carried the value only as `approvalId`, so the advertised
-          // preview -> execute -> status flow ended with a caller holding no
-          // field by the name the next call asks for. The HTTP surface already
-          // emits both (lib/http/workflow-data-routes.js), so this is the MCP
-          // side catching up rather than a new field: same value, same source,
-          // `approvalId` kept for anything already reading it.
-          runId: approval.id || '',
-          statusRoute: approval.id ? `/api/v2/ingest/runs/${approval.id}` : '',
-          queuedForExecution: approval.persisted === true,
-          result: null,
-          receipt: null,
-          refs: null,
-        }
-        : null;
-      return withMcpToolVerdictSurface({
-        ok: false,
-        gate: gateSurface,
-        approval: approvalSurface,
-        ...(ingestExecuteData ? { data: { ...ingestExecuteData, approval: approvalSurface } } : {}),
-        message: `Tool call queued for review: ${gate.reason}`,
-      }, name, args, gate);
-    }
-    if (gate.canDryRun) {
-      const dryRunResult = executeReadOnlyDryRun(kernel, name, args);
-      return withMcpToolVerdictSurface({
-        ok: true,
-        dryRun: true,
-        gate: {
-          decision: gate.decision,
-          allowed: gate.allowed,
-          canExecute: gate.canExecute,
-          canDryRun: gate.canDryRun,
-          requiredReview: gate.requiredReview,
-          reason: gate.reason,
-          metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
-        },
-        result: dryRunResult,
-        message: `Tool dry-run: ${gate.reason}`,
-      }, name, args, gate);
-    }
-    return withMcpToolVerdictSurface({
-      ok: false,
-      gate: {
-        decision: gate.decision,
-        allowed: gate.allowed,
-        canExecute: gate.canExecute,
-        canDryRun: gate.canDryRun,
-        requiredReview: gate.requiredReview,
-        reason: gate.reason,
-        metadata: { policyVersion: gate.metadata?.adapterVersion || 'V2.6-PR2' },
-      },
-      message: `Tool call blocked by gate: ${gate.reason}`,
-    }, name, args, gate);
-  }
-
-  const handler = Object.hasOwn(MCP_TOOL_HANDLERS, name) ? MCP_TOOL_HANDLERS[name] : null;
-  if (!handler) throw new Error(`Unknown tool: ${name}`);
-  return handler({ kernel, name, args, gate, runtime });
-}
-
-function executeReadOnlyDryRun(kernel, requestedName, args) {
-  // Exported and called directly by tests/tooling, so it resolves the alias
-  // itself rather than relying on callTool having canonicalized it.
-  const name = canonicalMcpToolName(requestedName);
-  switch (name) {
-    case 'huqan.learn':
-      return kernel.ask(`What would be learned from: ${(args.text || '').slice(0, 200)}`);
-    case 'huqan.agent':
-      return withTransientAgent(kernel, (agent) => (
-        agent.plan
-          ? agent.plan(sanitizeMcpString(args.goal, MCP_MAX_GOAL), {
-            maxSteps: boundedMcpInteger(args.maxSteps, 1, 1, 8),
-          })
-          : { dryRun: true, goal: args.goal }
-      ));
-    default:
-      return { dryRun: true, tool: name, args: scrubSecrets(args).scrubbed };
-  }
-}
-
-function validateMcpJsonShape(value) {
-  const stack = [{ value, depth: 0 }];
-  let values = 0;
-  while (stack.length > 0) {
-    const entry = stack.pop();
-    values += 1;
-    if (values > MCP_MAX_JSON_VALUES) return 'JSON value count exceeds protocol limit';
-    if (entry.depth > MCP_MAX_JSON_DEPTH) return 'JSON nesting depth exceeds protocol limit';
-    if (!entry.value || typeof entry.value !== 'object') continue;
-    for (const child of Object.values(entry.value)) stack.push({ value: child, depth: entry.depth + 1 });
-  }
-  return null;
 }
 
 function runStdio() {
   assertBootEnvironment();
-  const server = createServer();
-  let frame = Buffer.alloc(0);
-  let discardingOversizedFrame = false;
-  let shuttingDown = false;
-
-  // Serializing the response can itself throw (a circular structure or a
-  // BigInt reaching JSON.stringify), and this runs inside a stdin event
-  // handler where an escaping throw is fatal. Fall back to a fixed,
-  // always-serializable envelope rather than taking the process down.
-  function send(msg) {
-    let payload;
-    try {
-      payload = JSON.stringify(msg);
-    } catch (err) {
-      const errorRef = recordInternalError('stdio/serialize', err);
-      payload = JSON.stringify({
-        jsonrpc: '2.0',
-        id: (msg && typeof msg === 'object' && msg.id !== undefined) ? msg.id : null,
-        error: { code: -32603, message: `Internal error (ref: ${errorRef})` },
-      });
-    }
-    process.stdout.write(`${payload}\n`);
-  }
-
-  function sendInvalidRequest(message) {
-    send({ jsonrpc: '2.0', id: null, error: { code: -32600, message } });
-  }
-
-  function handleFrame(buffer) {
-    const trimmed = buffer.toString('utf8').trim();
-    if (!trimmed) return;
-
-    let message;
-    try {
-      message = JSON.parse(trimmed);
-    } catch (err) {
-      send({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } });
-      return;
-    }
-
-    const shapeError = validateMcpJsonShape(message);
-    if (shapeError) {
-      sendInvalidRequest(`Invalid Request: ${shapeError}`);
-      return;
-    }
-
-    // `handleRequest` guards its own `tools/call` branch, but every other
-    // branch is unguarded and this is an event handler -- an escaping throw
-    // takes the whole MCP server down mid-session instead of failing the one
-    // request (#414). A malformed request must never be able to do that.
-    try {
-      const response = server.handleRequest(message);
-      if (response && typeof response.then === 'function') {
-        response.then(send, (err) => {
-          const errorRef = recordInternalError('stdio/handleRequest', err);
-          send({
-            jsonrpc: '2.0', id: message.id,
-            error: { code: -32603, message: `Internal error (ref: ${errorRef})` },
-          });
-        });
-      } else if (response) send(response);
-    } catch (err) {
-      const errorRef = recordInternalError('stdio/handleRequest', err);
-      send({
-        jsonrpc: '2.0',
-        id: (message && typeof message === 'object' && message.id !== undefined) ? message.id : null,
-        error: { code: -32603, message: `Internal error (ref: ${errorRef})` },
-      });
-    }
-
-    if (message && message.method === 'shutdown') {
-      shuttingDown = true;
-      process.stdin.pause();
-      try {
-        server.close();
-      } catch (error) {
-        recordInternalError('stdio/shutdown', error);
-        process.exitCode = 1;
-      }
-      setTimeout(() => process.exit(process.exitCode || 0), 0).unref?.();
-    }
-  }
-
-  function consume(chunk) {
-    if (shuttingDown) return;
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    let offset = 0;
-    while (offset < bytes.length) {
-      const newline = bytes.indexOf(0x0a, offset);
-      const end = newline === -1 ? bytes.length : newline;
-      const part = bytes.subarray(offset, end);
-
-      if (discardingOversizedFrame) {
-        if (newline === -1) return;
-        discardingOversizedFrame = false;
-        frame = Buffer.alloc(0);
-      } else if (frame.length + part.length > MCP_MAX_FRAME_BYTES) {
-        sendInvalidRequest(`Invalid Request: JSON-RPC frame exceeds protocol limit of ${MCP_MAX_FRAME_BYTES} bytes`);
-        frame = Buffer.alloc(0);
-        discardingOversizedFrame = newline === -1;
-      } else {
-        if (part.length > 0) frame = Buffer.concat([frame, part]);
-        if (newline !== -1) {
-          handleFrame(frame);
-          frame = Buffer.alloc(0);
-        }
-      }
-
-      if (newline === -1) return;
-      offset = newline + 1;
-    }
-  }
-
-  process.stdin.on('data', consume);
-  process.stdin.on('end', () => {
-    if (!discardingOversizedFrame && frame.length > 0) handleFrame(frame);
-  });
+  serveStdio(createServer());
 }
 
 const mcpProcessFailureHandlers = createProcessFailureHandlers({

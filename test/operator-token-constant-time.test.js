@@ -57,6 +57,7 @@ test('no operator-token comparison guards timingSafeEqual with a length check (#
 
   const files = [
     'mcpServer.js',
+    'lib/mcp/operator-authorization.js',
     'requestGuards.js',
     'lib/http/memory-approval-routes.js',
     'lib/http/pr-guardian-routes.js',
@@ -79,12 +80,15 @@ test('no operator-token comparison guards timingSafeEqual with a length check (#
 });
 
 test('mcpServer routes its operator check through the shared helper (#1038)', () => {
-  // isMcpOperatorAuthorized is module-private, so this pins the wiring.
-  const source = fs.readFileSync(path.join(REPO_ROOT, 'mcpServer.js'), 'utf8');
-  assert.match(source, /require\('\.\/requestGuards'\)/, 'mcpServer must import the shared helper');
+  // isMcpOperatorAuthorized is module-private, so this pins the wiring. It moved
+  // out of mcpServer.js with the rest of MCP operator authorisation (#2142).
+  const source = fs.readFileSync(path.join(REPO_ROOT, 'lib', 'mcp', 'operator-authorization.js'), 'utf8');
+  assert.match(source, /require\('\.\.\/\.\.\/requestGuards'\)/, 'MCP operator authorisation must import the shared helper');
   assert.match(
     source,
     /function isMcpOperatorAuthorized[\s\S]{0,600}?constantTimeEqual\(configuredToken, presentedToken\)/,
     'isMcpOperatorAuthorized must compare through constantTimeEqual',
   );
+  const server = fs.readFileSync(path.join(REPO_ROOT, 'mcpServer.js'), 'utf8');
+  assert.match(server, /require\('\.\/lib\/mcp\/operator-authorization'\)/, 'mcpServer must use that module');
 });

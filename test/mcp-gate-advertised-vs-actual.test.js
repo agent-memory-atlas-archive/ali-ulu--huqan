@@ -72,7 +72,11 @@ test('#1253 AB6 leaves no scaffolding behind that implies it runs', () => {
 });
 
 test('#1183 the operator-token path records that the gates were not consulted', () => {
-  const source = require('node:fs').readFileSync(require.resolve('../mcpServer'), 'utf8');
+  // The operator verdict and dispatch moved out of mcpServer.js (#2142); all
+  // three files are read so the old reason cannot come back in any of them.
+  const source = ['../mcpServer', '../lib/mcp/operator-authorization', '../lib/mcp/tool-dispatch']
+    .map((file) => require('node:fs').readFileSync(require.resolve(file), 'utf8'))
+    .join('\n');
 
   // The old reason read `operator_authorized` beside `decision: 'allow'`, which
   // is indistinguishable from a verdict the gates produced.

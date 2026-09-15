@@ -65,7 +65,6 @@
     "lib/tool-call-gate.js": 731,
     "lib/v5/runtime-writer.js": 411,
     "lib/verify.js": 741,
-    "mcpServer.js": 788,
     "plugin.js": 728,
     "plugins/company-brain.js": 678,
     "plugins/receipt-exporter.js": 431,
@@ -299,10 +298,6 @@
     },
     "lib/verify.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "mcpServer.js": {
-      "why": "Pre-existing debt plus Gate A-1 (#2366 item 1) thin wiring: process-failure handler require and bind only; domain logic lives in lib/http/process-failure-handlers.js.",
       "review_by": "2027-03-31"
     },
     "plugin.js": {
