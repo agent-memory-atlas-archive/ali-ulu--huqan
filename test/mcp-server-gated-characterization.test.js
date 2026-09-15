@@ -166,7 +166,7 @@ const GATED_CALLS = [
   ['huqan.nope', {}],
 ];
 
-const OPERATOR_TOOLS = ['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'];
+const OPERATOR_TOOLS = ['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume', 'huqan.emergency_stop'];
 
 async function gatedScenarios() {
   const out = {};

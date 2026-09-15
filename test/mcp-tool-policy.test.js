@@ -69,8 +69,10 @@ test('every MCP tool the gate adapter knows gets the gate adapter answer', () =>
   }
 
   // Named so that a tool silently leaving or joining the classified set shows
-  // up here rather than only as a changed policy answer.
-  assert.deepEqual(unclassified.sort(), ['agent_resume', 'approve']);
+  // up here rather than only as a changed policy answer. huqan.emergency_stop
+  // joins huqan.approve and huqan.agent_resume: an operator-early-return tool
+  // with no gate classification, failing closed in huqan.policy like them.
+  assert.deepEqual(unclassified.sort(), ['agent_resume', 'approve', 'emergency_stop']);
 });
 
 test('anything that is not a HUQAN MCP tool falls through', () => {

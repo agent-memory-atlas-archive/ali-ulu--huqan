@@ -475,6 +475,7 @@
     "lib/mcp/server-lifecycle.js",
     "lib/mcp/tool-surface.js",
     "lib/mcp/operator-authorization.js",
+    "lib/mcp/operator-tool-schemas.js",
     "lib/mcp/transient-agent.js",
     "lib/mcp/tool-handlers.js",
     "lib/mcp/gate-refusal.js",

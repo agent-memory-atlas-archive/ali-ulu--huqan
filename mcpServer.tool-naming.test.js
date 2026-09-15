@@ -61,9 +61,10 @@ after(() => {
 // ─── name table ──────────────────────────────────────────────────────────────
 
 describe('RFC-001 MCP tool name table', () => {
-  it('defines twenty-five canonical names and twenty-five legacy aliases', () => {
-    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 25);
-    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 25);
+  it('defines twenty-six canonical names and twenty-six legacy aliases', () => {
+    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 26);
+    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 26);
+    assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.emergency_stop'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.trust_receipt_detail'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.web_research'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.ingest_preview'));
@@ -112,7 +113,7 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
 
   it('advertises only model-visible canonical tools and no approval operator surface', () => {
     const advertised = MODEL_VISIBLE_TOOL_SCHEMAS.map((tool) => tool.name);
-    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name));
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume', 'huqan.emergency_stop'].includes(name));
     assert.deepEqual([...advertised].sort(), [...expected].sort());
     assert.ok(!advertised.includes('huqan.approve'));
     assert.ok(!advertised.includes('huqan.approvals'));
@@ -135,7 +136,7 @@ describe('RFC-001 writer half: only canonical names are advertised', () => {
     const server = createServer();
     const listed = server.handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     const names = listed.result.tools.map((tool) => tool.name);
-    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume'].includes(name));
+    const expected = CANONICAL_MCP_TOOL_NAMES.filter(name => !['huqan.approve', 'huqan.approvals', 'huqan.approval_detail', 'huqan.agent_resume', 'huqan.emergency_stop'].includes(name));
     assert.deepEqual([...names].sort(), [...expected].sort());
     assert.equal(listed.result.tools.length, expected.length);
   });

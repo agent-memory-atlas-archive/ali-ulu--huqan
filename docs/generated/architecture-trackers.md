@@ -50,10 +50,10 @@ Tracked in total: **68**
 | `lib/dream-experiment-loop.js` | 533 | — |
 | `lib/contradiction-rules.js` | 531 | — |
 | `lib/external-action-guard.js` | 531 | — |
-| `lib/mcp-tool-catalog.js` | 531 | — |
 | `sandboxRunner.js` | 530 | OCP:8 |
 | `lib/github-connector.js` | 518 | ISP:1 |
 | `lib/command-exec-gate.js` | 515 | — |
+| `lib/mcp-tool-catalog.js` | 511 | — |
 | `lib/external-client-replay-store.js` | 510 | — |
 | `lib/memory-admission-gate.js` | 509 | — |
 | `lib/atp-conformance.js` | 504 | — |
