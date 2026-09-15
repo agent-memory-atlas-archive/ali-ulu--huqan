@@ -296,11 +296,6 @@
       "lines": 739,
       "signals": []
     },
-    "lib/sandbox-isolation.js": {
-      "band": "decompose",
-      "lines": 831,
-      "signals": []
-    },
     "lib/storage/tool-approval-methods.js": {
       "band": "recorded",
       "lines": 424,
