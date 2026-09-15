@@ -80,8 +80,7 @@
     "scripts/launch-installed-package-smoke.js": 636,
     "server.js": 1017,
     "storage.js": 627,
-    "workflow-agent.js": 562,
-    "workflow-tools.js": 880
+    "workflow-agent.js": 562
   },
   "reviews": {
     "agent.v3.js": {
@@ -365,10 +364,6 @@
       "review_by": "2027-03-31"
     },
     "workflow-agent.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2026-10-31"
-    },
-    "workflow-tools.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2026-10-31"
     }

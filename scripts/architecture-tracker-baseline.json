@@ -395,11 +395,6 @@
       "band": "recorded",
       "lines": 562,
       "signals": []
-    },
-    "workflow-tools.js": {
-      "band": "decompose",
-      "lines": 880,
-      "signals": []
     }
   }
 }
