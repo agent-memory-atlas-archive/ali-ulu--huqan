@@ -27,7 +27,9 @@ const path = require('node:path');
 const { after, test } = require('node:test');
 
 const repoRoot = path.resolve(__dirname, '..');
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-deploy-'));
+// Under the real temp path: on macOS os.tmpdir() is below /var -> /private/var,
+// and the A2A stores deliberately refuse a path with a symlinked ancestor.
+const tempDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-deploy-'));
 
 after(() => {
   try {

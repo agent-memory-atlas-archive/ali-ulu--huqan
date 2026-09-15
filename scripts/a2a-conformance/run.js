@@ -292,7 +292,7 @@ function rebindAll(fixture, request) {
 }
 
 function invokeConsumer(authority, requests) {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-d6-'));
+  const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-d6-'));
   try {
     const authorityPath = path.join(temp, 'receiver-authority.json');
     fs.writeFileSync(authorityPath, JSON.stringify(authority), { encoding: 'utf8', mode: 0o600 });
@@ -494,7 +494,7 @@ async function run() {
     { caseId: 'replay_same_exchange', expected: 'block/replay_detected', actual: 'block/replay_detected', passed: true },
   ];
   {
-    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-clean-room-'));
+    const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-clean-room-'));
     try {
       const exchangePath = path.join(temp, 'exchange.json');
       fs.writeFileSync(exchangePath, JSON.stringify({
@@ -633,7 +633,7 @@ async function run() {
   }
   {
     const one = buildFixture();
-    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-a2a-d6-concurrent-'));
+    const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-d6-concurrent-'));
     try {
       const authorityPath = path.join(temp, 'receiver-authority.json');
       fs.writeFileSync(authorityPath, JSON.stringify(one.authority), { encoding: 'utf8', mode: 0o600 });
