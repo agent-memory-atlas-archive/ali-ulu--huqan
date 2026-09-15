@@ -279,6 +279,8 @@
     "lib/external-action-command-policy.js",
     "lib/command-policy-editor.js",
     "lib/http/command-policy-route.js",
+    "lib/http/deployment-gated-route-auth.js",
+    "lib/http/emergency-stop-routes.js",
     "public/js/command-policy.js",
     "public/js/page-scroll.js",
     "lib/external-action-gate-sentinel.js",

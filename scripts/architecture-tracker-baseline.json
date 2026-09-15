@@ -168,11 +168,6 @@
         "ISP:1"
       ]
     },
-    "lib/http/route-auth-policy.js": {
-      "band": "recorded",
-      "lines": 453,
-      "signals": []
-    },
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",
       "lines": 477,
