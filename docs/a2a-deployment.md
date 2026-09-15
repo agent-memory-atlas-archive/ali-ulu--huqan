@@ -55,9 +55,14 @@ reservation or effect.
 After AB5 evaluates the delegated task, the receiver deterministically
 aggregates the parent receipt decision with its local decision. A disagreement
 emits `cross_agent_decision_contradiction` and the aggregate risk is the higher
-of the parent receipt's 0-100 score and the receiver decision score (`allow=0`,
-`review=50`, `dry_run_only=75`, `block=100`). The route receipt and aggregation
-are returned in refusal metadata or stored with an allowed task effect.
+of the parent receipt's 0-100 score and the receiver's own firewall risk score
+on the same scale. Only a receiver decision that carries no score falls back to
+the decision table (`allow=0`, `review=50`, `dry_run_only=75`, `block=100`), and
+`receiver.risk_source` says which one was used. The aggregation also records the
+delegated `maxRiskTier` as a 0-100 ceiling (the top of its band) and whether the
+receiver's score stayed within it; that record is not enforced. The route
+receipt and aggregation are returned in refusal metadata or stored with an
+allowed task effect.
 
 This path is local-first: validation, hashing, signature checks, aggregation,
 replay reservation, and task recording use only the request bytes and the
