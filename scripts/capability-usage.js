@@ -100,6 +100,7 @@ const EVIDENCE = Object.freeze({
   'persist': { none: 'a save leaves the saved data, not a record that a save happened' },
   'backup': { none: 'backups are files on disk, outside the store this check reads' },
   'restore': { none: 'restores are files on disk, outside the store this check reads' },
+  'emergency-stop': { none: 'stop records and their receipts live in the emergency stop directory, outside the store this check reads' },
   // Named explicitly rather than left to fall through. This capability shipped
   // with no usage signal at all -- the derivation records it produces live in
   // the repository, not the store -- so this check cannot tell whether anyone

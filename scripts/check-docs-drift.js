@@ -135,7 +135,11 @@ function knownToolNames() {
 }
 
 function registeredRouteSource() {
-  return fs.readFileSync(path.join(repoRoot, 'lib', 'http', 'route-auth-policy.js'), 'utf8');
+  // The deployment-gated rules live beside the policy table since #2505 F; a
+  // route declared in either file is registered.
+  return ['route-auth-policy.js', 'deployment-gated-route-auth.js']
+    .map((file) => fs.readFileSync(path.join(repoRoot, 'lib', 'http', file), 'utf8'))
+    .join('\n');
 }
 
 // Only statements of a requirement -- "Node.js >= 20", "Node 18+", "requires

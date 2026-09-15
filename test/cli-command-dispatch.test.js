@@ -315,7 +315,10 @@ const GOLDEN = {
   'rüya': 'a7b117822bec78d6c0a8e8604c91248c0c2a1ebf0e5f864e37cc9692a153aa59',
   'hypotheses': '2844268257d59b93991d762615e197e28b0a9731f3a15bb596fff44b89d71ddf',
   'selam': 'e0066643c5faa671ed4f704d0448575b6ba38cc0d38f06ac69054af8e1bbf311',
-  'yardım': '151def26b72a9cc2dff1e305cf6885f0c7b72a3bbb9bf2a98c2c61f89562ab35',
+  // #2505 F re-recorded `yardım`: the help text is generated from the workflow
+  // contract, which gained the `stop` and `lift` commands. Diffing the help
+  // text against main shows exactly those two added lines and nothing else.
+  'yardım': '2a676d259a970ad4585cab48a056ff0ba087ed8f165e05620aa0259e6a70c897',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };

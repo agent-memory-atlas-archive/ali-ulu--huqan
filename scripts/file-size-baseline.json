@@ -40,7 +40,6 @@
     "lib/external-client-trust-config.js": 448,
     "lib/github-app-streaming-trust.js": 612,
     "lib/github-connector.js": 518,
-    "lib/http/route-auth-policy.js": 453,
     "lib/http/workflow-data-routes.js": 477,
     "lib/human-oversight-approval-runtime.js": 744,
     "lib/huqan-package-format.js": 428,
@@ -197,10 +196,6 @@
       "review_by": "2027-03-31"
     },
     "lib/github-connector.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/http/route-auth-policy.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
