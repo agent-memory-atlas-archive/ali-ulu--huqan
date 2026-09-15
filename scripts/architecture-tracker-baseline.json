@@ -94,11 +94,6 @@
       "lines": 555,
       "signals": []
     },
-    "lib/code-change-gate.js": {
-      "band": "decompose",
-      "lines": 834,
-      "signals": []
-    },
     "lib/command-exec-gate.js": {
       "band": "recorded",
       "lines": 515,
