@@ -138,7 +138,7 @@
     },
     "lib/external-action-receipt.js": {
       "band": "recorded",
-      "lines": 590,
+      "lines": 589,
       "signals": []
     },
     "lib/external-client-mutation-receipt-owner.js": {

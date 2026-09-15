@@ -41,7 +41,7 @@ Tracked in total: **69**
 | `backupRestore.js` | 610 | — |
 | `lib/mcp-gate-adapter.js` | 606 | — |
 | `finalizer.js` | 604 | — |
-| `lib/external-action-receipt.js` | 590 | — |
+| `lib/external-action-receipt.js` | 589 | — |
 | `lib/ingest.js` | 587 | — |
 | `lib/memory-schema.js` | 568 | — |
 | `workflow-agent.js` | 562 | — |
