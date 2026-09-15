@@ -154,6 +154,7 @@
     "lib/memory-blast-radius.js",
     "lib/session-impact.js",
     "lib/run-impact.js",
+    "lib/emergency-stop.js",
     "lib/agent-action-firewall.js",
     "lib/agent-behavioral-integrity.js",
     "lib/agent-failure-signature.js",
