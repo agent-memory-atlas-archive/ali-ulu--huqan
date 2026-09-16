@@ -67,7 +67,7 @@ Tracked in total: **68**
 | `lib/external-client-trust-config.js` | 448 | — |
 | `lib/agent-action-firewall.js` | 437 | — |
 | `lib/learn-use-case.js` | 437 | — |
-| `plugins/receipt-exporter.js` | 431 | — |
+| `plugins/receipt-exporter.js` | 430 | — |
 | `lib/huqan-package-format.js` | 428 | — |
 | `public/js/app.js` | 425 | — |
 | `lib/storage/tool-approval-methods.js` | 424 | — |

@@ -330,7 +330,7 @@
     },
     "plugins/receipt-exporter.js": {
       "band": "recorded",
-      "lines": 431,
+      "lines": 430,
       "signals": []
     },
     "plugins/repo-memory.js": {
