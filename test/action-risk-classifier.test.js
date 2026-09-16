@@ -28,8 +28,8 @@ const {
 } = require('../lib/action-risk-classifier');
 
 describe('AB1 v2 canon', () => {
-  it('exports 13 canonical categories', () => {
-    assert.strictEqual(Object.keys(ACTION_CATEGORIES).length, 13);
+  it('exports 14 canonical categories', () => {
+    assert.strictEqual(Object.keys(ACTION_CATEGORIES).length, 14);
     assert.ok(Object.isFrozen(ACTION_CATEGORIES));
     assert.strictEqual(ACTION_CATEGORIES.READ_ONLY, 'READ_ONLY');
     assert.strictEqual(ACTION_CATEGORIES.PRODUCTION_MUTATION, 'PRODUCTION_MUTATION');
@@ -98,6 +98,12 @@ describe('AB1 v2 normalization', () => {
     assert.strictEqual(normalizeActionType('network_access'), 'NETWORK_CALL');
     assert.strictEqual(normalizeActionType('local_analysis'), 'READ_ONLY');
     assert.strictEqual(normalizeActionType('test_execution'), 'SANDBOX_SIMULATION');
+    assert.strictEqual(normalizeActionType('payment'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('BILLING'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('invoice'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('refund'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('charge'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('payout'), 'FINANCIAL_TRANSACTION');
   });
 
   it('returns null for unknown categories', () => {
@@ -382,6 +388,18 @@ describe('AB1 v2 classifier behavior', () => {
       assert.strictEqual(r.riskLevel, RISK_LEVELS.CRITICAL, token);
       assert.strictEqual(r.decision, ACTION_DECISIONS.BLOCK, token);
       assert.strictEqual(r.hardBlocked, true, token);
+    }
+  });
+
+  it('financial transactions resolve CRITICAL and hold for human review until the dedicated rule lands (#2505/D)', () => {
+    assert.strictEqual(resolveRiskLevel('FINANCIAL_TRANSACTION'), RISK_LEVELS.CRITICAL);
+    for (const token of ['FINANCIAL_TRANSACTION', 'payment', 'billing', 'invoice', 'refund', 'charge', 'payout']) {
+      const r = classifyAgentAction({ category: token });
+      assert.strictEqual(r.category, ACTION_CATEGORIES.FINANCIAL_TRANSACTION, token);
+      // No dedicated CATEGORY_RULES entry yet (that table cannot grow without
+      // a module split): the unknown-category rule holds, fail-closed.
+      assert.strictEqual(r.decision, ACTION_DECISIONS.HUMAN_REVIEW, token);
+      assert.ok(r.flags.includes(FLAGS.UNKNOWN_ACTION_CATEGORY), token);
     }
   });
 
