@@ -58,7 +58,10 @@ function signedRequest(bodyObject, deliveryId = DELIVERY) {
 }
 
 function tempStores(t) {
-  const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-streaming-'));
+  // Realpath the sandbox: the beta store deliberately refuses roots that
+  // traverse symlinks (macOS /var -> /private/var, #2548). Guard stays,
+  // tests use real paths -- same precedent as #2534.
+  const rootPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-streaming-')));
   t.after(() => fs.rmSync(rootPath, { recursive: true, force: true }));
   return {
     rootPath,
@@ -226,7 +229,7 @@ test('review, dry-run-only, and block verdicts update the review gate without in
   ];
 
   for (const item of cases) {
-    const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-verdict-'));
+    const rootPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-verdict-')));
     t.after(() => fs.rmSync(rootPath, { recursive: true, force: true }));
     const github = makeGitHubFetch({ files: [item.file], checkRunId: 500000 + cases.indexOf(item) });
     const result = await handleGitHubAppStreamingTrustWebhook({
