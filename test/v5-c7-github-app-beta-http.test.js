@@ -23,7 +23,10 @@ const SECRET = 'github-app-beta-http-secret';
 const DELIVERY = '72d3162e-cc78-11e3-81ab-4c9367dc0958';
 
 function tempRoot(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-http-'));
+  // Realpath the sandbox: the beta store deliberately refuses roots that
+  // traverse symlinks (macOS /var -> /private/var, #2551). Guard stays,
+  // tests use real paths -- same precedent as #2534.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-http-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }

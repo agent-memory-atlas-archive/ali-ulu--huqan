@@ -61,7 +61,10 @@ function receipt(input = binding()) {
 }
 
 function tempRoot(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-beta-'));
+  // Realpath the sandbox: the beta store deliberately refuses roots that
+  // traverse symlinks (macOS /var -> /private/var, #2557). Guard stays,
+  // tests use real paths -- same precedent as #2534.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-beta-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }
