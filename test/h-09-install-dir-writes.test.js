@@ -78,7 +78,9 @@ test('H-09: metric export to tmp succeeds via run()', () => {
 });
 
 test('H-09: receipt export under an outside-repo cwd succeeds', () => {
-  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), 'h09-cwd-'));
+  // Realpath: the export returns the canonical dir spelling (macOS /var ->
+  // /private/var, #2543). Same convention as the other tmpdir tests.
+  const workdir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'h09-cwd-')));
   const previousCwd = process.cwd();
   process.chdir(workdir);
   try {
