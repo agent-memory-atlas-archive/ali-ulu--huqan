@@ -15,6 +15,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 
 const { createReviewService } = require('../lib/pr-guardian/review-service');
 const { ACTIONS, DECISIONS } = require('../lib/pr-guardian/policy');
@@ -150,6 +151,17 @@ test('a sequential replay does not post a second comment', async () => {
   assert.equal(stored.context.execution.outcome, 'completed');
   assert.equal(stored.context.receipt.receiptId, first.receipt.receiptId);
   assert.equal(replay.receipt.receiptId, first.receipt.receiptId);
+});
+
+test('the receipt carries a hash of the actual GitHub result, not a placeholder', async () => {
+  const { service, id } = approvedService();
+  const client = countingClient();
+
+  const first = await service.execute(id, { operatorToken: 'operator', githubClient: client });
+  assert.equal(first.ok, true);
+
+  const expectedResultHash = `sha256:${crypto.createHash('sha256').update(JSON.stringify(first.result), 'utf8').digest('hex')}`;
+  assert.equal(first.receipt.resultHash, expectedResultHash);
 });
 
 test('concurrent execution requests collapse to a single external call', async () => {
