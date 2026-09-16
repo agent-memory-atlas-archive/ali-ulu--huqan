@@ -33,7 +33,13 @@ function fail(code, message, meta = {}) {
 
 function withTempCwd(fn) {
   const originalCwd = process.cwd();
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-agent-'));
+  // Realpath the scratch dir: the approval store resolves its dbPath to the
+  // canonical spelling (resolveContainedPath), so dbPath assertions in this
+  // file must use the same spelling. Under a symlinked tmpdir (macOS /var ->
+  // /private/var, #2547) the raw spelling mismatches, and the resulting
+  // assertion failure also leaves the store open, masking itself as an EBUSY
+  // teardown error. Same convention as cli.test.js and the adapter tests.
+  const tempDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-agent-')));
   try {
     process.chdir(tempDir);
     return fn(tempDir);
