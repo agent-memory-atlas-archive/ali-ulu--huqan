@@ -39,6 +39,11 @@ const repoRoot = path.resolve(__dirname, '..');
  */
 const ENTRY_POINTS = Object.freeze([
   'workflow-agent.js',
+  // #2396: PEM has no production caller yet (NOT_YET_WIRED in
+  // lib/module-reachability.js), so nothing above already walks its
+  // require graph. Listed here directly so the deterministic-execution
+  // claim covers it too, per acceptance test 7 on #2396.
+  'lib/experience/personal-execution-model.js',
 ]);
 
 /**
