@@ -16,7 +16,12 @@ const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 function withTempDir(run) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-2143-'));
+  // Realpath the scratch dir: the storage resolves an explicit dbPath to its
+  // canonical spelling (resolveContainedPath), so dbPath assertions in this
+  // file must use the same spelling. Under a symlinked tmpdir (macOS /var ->
+  // /private/var, #2546) the raw spelling mismatches. Same convention as
+  // cli.test.js, backupRestore.test.js and the adapter tests.
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-2143-')));
   try { return run(dir); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
