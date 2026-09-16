@@ -84,7 +84,10 @@ button, input, select { font: inherit; color: inherit; }
 .side-foot select { background: var(--side-hover); border: 1px solid var(--side-line); border-radius: 8px; padding: 5px 8px; color: var(--side-ink); }
 .side-edit { color: var(--side-soft); text-decoration: none; font-size: 12px; }
 .side-edit:hover { color: var(--side-ink); text-decoration: underline; }
-.session-form { display: grid; gap: 6px; }
+.session-status-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.session-status-row .side-edit { flex: none; background: none; border: none; cursor: pointer; font: inherit; padding: 0; }
+.session-form { display: grid; gap: 6px; margin-top: 6px; }
+.session-form[hidden] { display: none; }
 .session-form input { background: var(--side-hover); border: 1px solid var(--side-line); border-radius: 8px; padding: 5px 8px; color: var(--side-ink); width: 100%; }
 .session-actions { display: flex; align-items: center; gap: 8px; }
 .session-state { color: var(--side-soft); font-size: 11.5px; }

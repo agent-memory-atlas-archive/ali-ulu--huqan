@@ -84,6 +84,14 @@
     }
   }
 
+  $('#settings-toggle')?.addEventListener('click', () => {
+    const form = $('#session-form');
+    const toggle = $('#settings-toggle');
+    if (!form || !toggle) return;
+    form.hidden = !form.hidden;
+    toggle.setAttribute('aria-expanded', String(!form.hidden));
+  });
+
   $('#session-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const key = $('#session-key').value.trim();

@@ -26,18 +26,22 @@
     </nav>
     <div class="grow"></div>
     <div class="side-foot">
-      <form id="session-form" class="session-form">
+      <div class="session-status-row">
+        <span class="session-state" id="session-state">Not connected</span>
+        <button type="button" class="side-edit" id="settings-toggle" aria-expanded="false" aria-controls="session-form">Settings</button>
+      </div>
+      <form id="session-form" class="session-form" hidden>
         <label for="session-key">API key<input type="password" id="session-key" autocomplete="off" placeholder="HUQAN API key"></label>
         <label for="session-ws">Workspace<input type="text" id="session-ws" value="default"></label>
-        <div class="session-actions"><button class="btn" type="submit">Connect</button><span class="session-state" id="session-state">Not connected</span></div>
+        <div class="session-actions"><button class="btn" type="submit">Connect</button></div>
+        <label for="theme">Theme
+          <select id="theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
       </form>
-      <label for="theme">Theme
-        <select id="theme">
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
       <a class="side-edit" id="bug-report-link" href="https://github.com/ali-ulu/huqan/issues/new" target="_blank" rel="noopener">Report a bug</a>
     </div>
   </aside>
