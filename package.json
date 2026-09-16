@@ -324,6 +324,7 @@
     "lib/error-prevention",
     "lib/errors/provenance-error.js",
     "lib/experience/contract.js",
+    "lib/experience/compiler.js",
     "lib/experience/journal.js",
     "lib/experience/learning.js",
     "lib/experience/read-model.js",
