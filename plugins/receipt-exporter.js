@@ -96,8 +96,16 @@ function resolveExportRoot(candidateDir) {
   if (isPathWithinRoot(REPO_ROOT, absolute)) {
     return DEV_RECEIPTS_ROOT;
   }
-  const roots = [defaultOutputDir(), os.tmpdir(), process.cwd()]
-    .map((root) => path.resolve(root))
+  // Accept each root's real path too, so a canonical candidate under a
+  // symlinked root (macOS /var -> /private/var, #2550) still matches.
+  // Same convention as getCliReadRoots in lib/cli-helpers.js. True escapes
+  // still fail closed via resolvePathWithinRoot in resolveReceiptTarget.
+  const resolved = [defaultOutputDir(), os.tmpdir(), process.cwd()]
+    .map((root) => path.resolve(root));
+  const real = resolved.map((entry) => {
+    try { return fs.realpathSync(entry); } catch (_) { return entry; }
+  });
+  const roots = [...new Set([...resolved, ...real])]
     .filter((root) => isPathWithinRoot(root, absolute))
     .sort((left, right) => right.length - left.length);
   if (!roots.length) {
@@ -191,8 +199,13 @@ function resolveReceiptTarget(receipt, outputDir, extension) {
 
   // Defence in depth: the stem is already a validated single segment, so this
   // should be unreachable -- it exists so any future loosening of the stem
-  // rules still cannot write outside the resolved directory.
-  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(exportRoot, filePath)) {
+  // rules still cannot write outside the resolved directory. The root is
+  // compared in its canonical spelling because filePath is canonical
+  // (built from resolvedDir); under a symlinked root (macOS /var ->
+  // /private/var, #2550) the raw spelling mismatches.
+  let canonicalExportRoot = exportRoot;
+  try { canonicalExportRoot = fs.realpathSync(exportRoot); } catch (_) {}
+  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(canonicalExportRoot, filePath)) {
     throw createPathError(
       'PATH_OUTSIDE_ALLOWED_ROOT',
       'Path escapes allowed root',
