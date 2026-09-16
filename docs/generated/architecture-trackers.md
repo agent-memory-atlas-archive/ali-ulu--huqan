@@ -32,8 +32,8 @@ Tracked in total: **68**
 | `plugins/company-brain.js` | 678 | — |
 | `lib/receipt/public-trust-receipt.js` | 660 | — |
 | `lib/provenance-query.js` | 656 | — |
-| `lib/receipt/receipt-read-index.js` | 640 | — |
 | `cli.js` | 637 | FANOUT:26 |
+| `lib/receipt/receipt-read-index.js` | 637 | — |
 | `storage.js` | 627 | — |
 | `lib/conflict-detector.js` | 617 | ISP:6 |
 | `lib/github-app-streaming-trust.js` | 612 | — |
@@ -43,7 +43,7 @@ Tracked in total: **68**
 | `finalizer.js` | 604 | — |
 | `lib/external-action-receipt.js` | 589 | — |
 | `lib/ingest.js` | 587 | — |
-| `lib/memory-schema.js` | 568 | — |
+| `lib/memory-schema.js` | 565 | — |
 | `workflow-agent.js` | 562 | — |
 | `lib/causal/causal-verdict.js` | 555 | — |
 | `lib/automation-safety-gate/automation-operation-classifier.js` | 545 | — |
@@ -55,7 +55,7 @@ Tracked in total: **68**
 | `lib/command-exec-gate.js` | 515 | — |
 | `lib/mcp-tool-catalog.js` | 511 | — |
 | `lib/external-client-replay-store.js` | 510 | — |
-| `lib/memory-admission-gate.js` | 509 | — |
+| `lib/memory-admission-gate.js` | 506 | — |
 | `lib/atp-conformance.js` | 504 | — |
 | `lib/a2a/exchange-route.js` | 493 | — |
 | `causalSimulator.js` | 478 | — |
