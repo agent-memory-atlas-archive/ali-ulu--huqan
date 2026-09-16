@@ -78,7 +78,10 @@ test('metric-collector: run() export accepts a path under the OS temp root (H-09
   // A read-only install cannot be written to, so tmp/cwd/user-data targets
   // must be accepted -- previously any path outside the repo was rejected
   // with PATH_OUTSIDE_ALLOWED_ROOT, which made exports impossible there.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-metric-export-outside-'));
+  // Realpath the scratch dir: run() returns the canonical output path, so
+  // this comparison must use the same spelling. Under a symlinked tmpdir
+  // (macOS /var -> /private/var, #2554) the raw spelling mismatches.
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-metric-export-outside-')));
   try {
     const outputPath = path.join(dir, 'telemetry.json');
     const result = metricCollector.run(kernel, { action: 'export', outputPath });
