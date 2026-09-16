@@ -7,7 +7,12 @@ const path = require('path');
 const { createBackup, listBackups, restoreBackup } = require('./backupRestore');
 
 function makeTempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-backup-'));
+  // Realpath the scratch root: createBackup()/restoreBackup() return
+  // canonicalized paths (resolvePathWithinRoot), so string comparisons in
+  // this file must use the same spelling. Under a symlinked tmpdir
+  // (macOS /var -> /private/var, #2553) the raw spelling mismatches.
+  // Same convention as cli.test.js and the adapter tests.
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-backup-')));
 }
 
 describe('backupRestore', () => {
