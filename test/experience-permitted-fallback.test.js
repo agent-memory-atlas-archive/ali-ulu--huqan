@@ -18,7 +18,7 @@ const {
   PROVENANCE_SOURCES, FALLBACK_REFUSAL_REASONS,
   createStandingGrant, createPermittedFallbackRegistry,
   buildFallbackReceiptPayload, buildFallbackRunClosedPayload,
-  evaluateFallbackAction,
+  evaluateFallbackAction, isPermittedFallbackSignal,
 } = require('../lib/experience/permitted-fallback');
 const {
   applyFallbackPreferredOverCount, assertParanoidDeterministicProof,
@@ -29,7 +29,7 @@ const { resolveLearningEligibility } = require('../lib/experience/contract');
 const { createLearningPool, CODES } = require('../lib/experience/learning');
 const { createCapabilityTrustRegistry, TRUST_STATES } = require('../lib/experience/capability-trust');
 const { evaluateAgentActionFirewall } = require('../lib/agent-action-firewall');
-const { evaluateMemoryAdmission, isPermittedFallbackSignal } = require('../lib/memory-admission-gate');
+const { evaluateMemoryAdmission } = require('../lib/memory-admission-gate');
 const { checkDeterministicPath } = require('../scripts/check-deterministic-path');
 
 const FUTURE = new Date(Date.now() + 60 * 60 * 1000).toISOString();
