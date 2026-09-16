@@ -556,7 +556,9 @@ describe('V5-D3 import: canonical bounded wire and exact shape', () => {
 
 describe('V5-D3 file boundary and process round-trip', () => {
   it('round-trips a real Ed25519 artifact across two independent Node processes', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-process-'));
+    // Realpath the sandbox: the writer refuses parents that traverse symlinks
+    // (macOS /var -> /private/var, #2552). Guard stays, tests use real paths.
+    const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-process-')));
     const receiptPath = path.join(directory, 'public-receipt.json');
     const publicKeyPath = path.join(directory, 'public-key.txt');
     const modulePath = path.join(ROOT, 'lib', 'v5', 'public-trust-receipt.js');
@@ -603,7 +605,7 @@ describe('V5-D3 file boundary and process round-trip', () => {
   });
 
   it('leaves an existing target byte-for-byte unchanged', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-existing-'));
+    const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-existing-')));
     const target = path.join(directory, 'existing.json');
     fs.writeFileSync(target, 'owner-data', { flag: 'wx' });
     const { receipt } = makeReceipt();
@@ -615,7 +617,7 @@ describe('V5-D3 file boundary and process round-trip', () => {
   });
 
   it('allows exactly one of two concurrent writers to create the target', async () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-race-'));
+    const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-race-')));
     const source = path.join(directory, 'source.json');
     const target = path.join(directory, 'winner.json');
     const { receipt } = makeReceipt();
@@ -642,7 +644,7 @@ describe('V5-D3 file boundary and process round-trip', () => {
   });
 
   it('rejects a symlink or junction parent and target', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-link-'));
+    const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-d3-link-')));
     const realParent = path.join(directory, 'real');
     const linkedParent = path.join(directory, 'linked');
     fs.mkdirSync(realParent);
