@@ -446,6 +446,7 @@
     "lib/ingest.js",
     "lib/interop/otel-mapping.js",
     "lib/interop/vc-mapping.js",
+    "lib/json-clone.js",
     "lib/json-object.js",
     "lib/json-utf8-size.js",
     "lib/kernel-contract.js",
