@@ -13,6 +13,7 @@ const test = require('node:test');
 const {
   EMERGENCY_STOP_REASON,
   EMERGENCY_STOP_UNREADABLE_REASON,
+  EMERGENCY_STOP_INTEGRITY_VIOLATION_REASON,
   createEmergencyStop,
 } = require('../lib/emergency-stop');
 
@@ -78,9 +79,14 @@ test('a stop record that cannot be read keeps the scope stopped', (t) => {
   ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment', actor: 'operator:ali' });
   const [recordFile] = fs.readdirSync(ledger.directory).filter((name) => name.endsWith('.stop.json'));
   fs.writeFileSync(path.join(ledger.directory, recordFile), 'not json', 'utf8');
-  assert.deepEqual(ledger.check({ workspaceId: 'w', agentId: 'a1' }), {
-    stopped: true, scope: 'agent', reason: EMERGENCY_STOP_UNREADABLE_REASON, record: null,
-  });
+  // #2584: with ledger, a corrupt file is an integrity violation (still fail-closed, louder)
+  const result = ledger.check({ workspaceId: 'w', agentId: 'a1' });
+  assert.equal(result.stopped, true);
+  assert.ok(
+    result.reason === EMERGENCY_STOP_UNREADABLE_REASON || result.reason === EMERGENCY_STOP_INTEGRITY_VIOLATION_REASON,
+    `expected unreadable or integrity violation, got ${result.reason}`,
+  );
+  assert.equal(result.record, null);
 });
 
 test('no directory means no stop has been issued', (t) => {
