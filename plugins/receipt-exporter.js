@@ -65,7 +65,7 @@ function loadPdfDocument() {
   }
   return PDFDocumentCache;
 }
-const { createPathError, isPathWithinRoot, resolvePathWithinRoot, withRealpathSpellings } = require('../lib/path-safety');
+const { canonicalizePath, createPathError, isPathWithinRoot, resolvePathWithinRoot, withRealpathSpellings } = require('../lib/path-safety');
 const { resolveReceiptsDir } = require('../persistencePaths');
 
 const REPO_ROOT = path.join(__dirname, '..');
@@ -189,9 +189,9 @@ function resolveReceiptTarget(receipt, outputDir, extension) {
   const filePath = path.join(resolvedDir, `${stem}.${extension}`);
 
   // Defence in depth: the stem is already a validated single segment, so this
-  // should be unreachable; the root is compared in canonical spelling because
-  // filePath is canonical (built from resolvedDir).
-  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(withRealpathSpellings([exportRoot]).pop(), filePath)) {
+  // should be unreachable; compare canonical spellings (canonicalizePath
+  // covers not-yet-created roots via the longest existing ancestor).
+  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(canonicalizePath(exportRoot, true), filePath)) {
     throw createPathError(
       'PATH_OUTSIDE_ALLOWED_ROOT',
       'Path escapes allowed root',
