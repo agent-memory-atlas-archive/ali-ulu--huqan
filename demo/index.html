@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUQAN — 60-second demo (static, backend-free)</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:640px;margin:2rem auto;padding:0 1rem;line-height:1.5}
+.card{border:1px solid #ccc;border-radius:8px;padding:1rem;margin:1rem 0}
+.block{border-left:6px solid #c0392b}.review{border-left:6px solid #e67e22}.allow{border-left:6px solid #27ae60}
+button{padding:.5rem 1rem;margin:.25rem .5rem .25rem 0;cursor:pointer}
+code{background:#f4f4f4;padding:.1rem .3rem;border-radius:4px}
+pre{background:#f4f4f4;padding:.75rem;border-radius:8px;overflow:auto}
+.small{color:#666;font-size:.85rem}
+</style>
+</head>
+<body>
+<h1>HUQAN — 60-second demo</h1>
+<p class="small">Static simulation. No backend, no API keys, no telemetry. Not live engine output.</p>
+
+<div class="card block">
+<h2>1. Agent: “Delete production database”</h2>
+<p><strong>Risk:</strong> CRITICAL &nbsp; <strong>Policy:</strong> production-destructive</p>
+<p><strong>Decision: BLOCK</strong> — the executor never runs.</p>
+<pre>{
+  "decision": "block",
+  "receipt_id": "demo-receipt-block-001",
+  "reason": "production-destructive action without human approval"
+}</pre>
+</div>
+
+<div class="card review">
+<h2>2. Agent: “Create GitHub PR”</h2>
+<p><strong>Decision: REVIEW</strong> — needs a human.</p>
+<button id="approveBtn">Human approves</button>
+<div id="approved" hidden>
+<p><strong>Approved.</strong> Executor ran after approval.</p>
+<pre>{
+  "decision": "allow-after-review",
+  "receipt_id": "demo-receipt-review-002",
+  "approval": "human:demo-operator"
+}</pre>
+</div>
+</div>
+
+<div class="card allow">
+<h2>Trust Receipt</h2>
+<p>Every decision leaves one: evidence, policy, approval — inspectable before state changes.</p>
+<p class="small">Real receipts live in the local Trust Receipt Viewer (<code>/viewer</code>) on a running server.</p>
+</div>
+
+<script>
+document.getElementById('approveBtn').addEventListener('click', function () {
+  document.getElementById('approved').hidden = false;
+});
+</script>
+</body>
+</html>
