@@ -21,7 +21,6 @@
     "kernel.v2.js": 771,
     "lib/a2a/bounded-exchange.js": 693,
     "lib/a2a/exchange-route.js": 493,
-    "lib/agent-action-firewall.js": 437,
     "lib/atp-conformance.js": 504,
     "lib/automation-safety-gate/automation-operation-classifier.js": 545,
     "lib/causal/causal-traversal.js": 451,
@@ -119,10 +118,6 @@
       "review_by": "2027-03-31"
     },
     "lib/a2a/exchange-route.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "lib/agent-action-firewall.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },

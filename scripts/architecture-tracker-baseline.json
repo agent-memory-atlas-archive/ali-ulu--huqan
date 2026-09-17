@@ -68,11 +68,6 @@
       "lines": 493,
       "signals": []
     },
-    "lib/agent-action-firewall.js": {
-      "band": "recorded",
-      "lines": 437,
-      "signals": []
-    },
     "lib/atp-conformance.js": {
       "band": "recorded",
       "lines": 504,
