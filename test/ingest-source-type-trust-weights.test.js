@@ -30,11 +30,11 @@ const FALLBACK = POLICY.fallback && typeof POLICY.fallback.unknown === 'number'
   ? POLICY.fallback.unknown
   : 0.5;
 
-/** The source types provenance-ingest.js is willing to accept. */
+/** The source types the provenance record accepts (#2246: set lives in record-utils). */
 function declaredSourceTypes() {
-  const source = fs.readFileSync(path.join(REPO_ROOT, 'lib', 'provenance-ingest.js'), 'utf8');
+  const source = fs.readFileSync(path.join(REPO_ROOT, 'lib', 'provenance-record-utils.js'), 'utf8');
   const block = source.match(/const VALID_SOURCE_TYPES = new Set\(\[([\s\S]*?)\]\)/);
-  assert.ok(block, 'VALID_SOURCE_TYPES not found in lib/provenance-ingest.js');
+  assert.ok(block, 'VALID_SOURCE_TYPES not found in lib/provenance-record-utils.js');
   return new Set([...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]));
 }
 
