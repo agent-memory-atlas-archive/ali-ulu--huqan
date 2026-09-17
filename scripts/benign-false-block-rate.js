@@ -93,7 +93,18 @@ function decide(command, workspaceRoot) {
     args: { command },
     cwd: workspaceRoot,
     workspaceRoot,
-  }, { receiptWriter: { append() {} } });
+  }, {
+    receiptWriter: { append() {} },
+    // This corpus measures the *policy* cost of ordinary developer actions:
+    // what the risk, command and path gates charge for work that has no
+    // hostile intent. The identity gate is orthogonal and has its own suite
+    // (test/external-action-identity.test.js); a deployment is expected to
+    // satisfy it, not to have it counted here. #2505 C made unattested calls
+    // block by default, which would otherwise swamp every entry with the same
+    // verdict and turn this ratchet into a second identity test.
+    requireIdentityCard: false,
+    requireSignedIdentityCard: false,
+  });
   return {
     command,
     decision: result.decision,

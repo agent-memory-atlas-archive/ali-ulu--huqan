@@ -12,6 +12,18 @@ const root = path.resolve(__dirname, '..');
 const hook = path.join(root, 'bin', 'huqan-gate-hook.js');
 const adapterRoot = path.join(root, 'adapters', 'external-action');
 
+// These tests are about the host projections and receipt persistence, not about
+// the #2505 C identity default (which test/external-action-identity.test.js
+// owns). Unattested calls now block by default, so the projection fixtures opt
+// out the way the in-process guard tests already do with `requireIdentityCard:
+// false`. An explicit `--require-identity` still wins, which the fail-closed
+// case below pins.
+const PROJECTION_ENV = Object.freeze({
+  ...process.env,
+  HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'allow',
+  HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: 'allow',
+});
+
 function runHook(profile, payload, directory) {
   const receiptLog = path.join(directory, 'receipts.jsonl');
   const memoryPath = path.join(directory, 'memory.json');
@@ -31,6 +43,7 @@ function runHook(profile, payload, directory) {
       cwd: root,
       input: JSON.stringify(payload),
       encoding: 'utf8',
+      env: PROJECTION_ENV,
     }),
   };
 }
@@ -122,6 +135,10 @@ test('shipped adapter templates bind every supported host to HUQAN before execut
 
 function identityCardFile(directory) {
   const target = path.join(directory, 'card.json');
+  // The hook evaluates the card against the real clock, so the window is built
+  // around it: #2505 C requires an expiry and caps the lifetime at 24h.
+  const issuedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   fs.writeFileSync(target, JSON.stringify({
     schemaVersion: 'huqan.agent-identity-card.v1',
     agentId: 'future-agent-2035',
@@ -129,7 +146,8 @@ function identityCardFile(directory) {
     ownerActorId: 'actor:ali',
     workspaceId: 'default',
     capabilities: ['shell'],
-    issuedAt: '2026-01-01T00:00:00.000Z',
+    issuedAt,
+    expiresAt,
   }));
   return target;
 }
@@ -146,7 +164,7 @@ function runHookWithCard(payload, directory, extraArgs = []) {
       '--memory-path', path.join(directory, 'memory.json'),
       '--db-path', path.join(directory, 'memory.db'),
       ...extraArgs,
-    ], { cwd: root, input: JSON.stringify(payload), encoding: 'utf8' }),
+    ], { cwd: root, input: JSON.stringify(payload), encoding: 'utf8', env: PROJECTION_ENV }),
   };
 }
 
