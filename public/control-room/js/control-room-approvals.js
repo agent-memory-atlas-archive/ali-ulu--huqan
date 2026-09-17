@@ -41,7 +41,7 @@
         <article class="ticket">
           <div>
             <h3>${esc(a.tool || 'action')}</h3>
-            <div class="meta"><span class="mono">${esc(a.tool)}</span><span>${ago(new Date(a.createdAt).toISOString())}</span><span>workspace: <span class="mono">${esc(a.workspaceId)}</span></span></div>
+            <div class="meta"><span class="mono">${esc(a.tool)}</span><span>${ago(new Date(a.createdAt).toISOString())}</span><span>workspace: <span class="mono">${esc(a.workspaceId)}</span></span>${a.origin && a.origin.kind === 'external-agent' ? `<span class="chip sq c-review">source: external agent <span class="mono">${esc(a.origin.ref || 'unknown')}</span></span>` : ''}</div>
             <p class="why">${esc(a.reason || 'Policy requires a person for this action.')}</p>
             <p class="why" style="color:var(--soft)">${esc(inputSummary(a.input))}</p>
           </div>

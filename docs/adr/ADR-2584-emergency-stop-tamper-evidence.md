@@ -43,13 +43,16 @@ HUQAN kendi eBPF probe'unu yazmaz. OS seviyesi izolasyon gerektiginde mevcut den
 - Kimlik belirsizse `workspace` scope'a genisler, dar bir yanlis kimlige kilit atmaz.
 - Bildirim `lib/observability/notification-adapter.js` uzerinden, `integrity_violation` icin kapatilamaz route (Control Room banner, operator `lift` receipt'iyle temizlenir).
 
-### 4. Workspace lift quorum
+### 4. Workspace lift quorum — GERI ALINDI (#2591)
 
-`lib/emergency-stop.js:398 lift()`:
-- `scope === 'workspace'` icin `lift actor !== stop actor` zorunlu — ayni operator hem durdurup hem tek basina kaldiramaz.
-- Basarisiz lift `emergency_stop_quorum_distinct_approver_required` doner, dosya silinmez, ledger'a yazilmaz.
-- `agent` scope quorum gerektirmez (dar etki).
-- Bu, `lib/human-oversight-approval-runtime.js:390 requiredApprovers=2` quorum mantiginin emergency-stop'a tasinmasidir. Tek basina confused-deputy'yi cozmez ama `dis ajan -> kandirilmis operator tek basina kaldirir` yolunu kapatir.
+Ilk tasarimda `lift()` ayni actor'u reddediyordu. Testler gosterdi ki tum
+yuzeyler rol actor'u hardcode'liyor (`operator:cli`, `operator:http`,
+`operator:mcp` — insan kimligi yok): kural mesru tek-yuzey stop-then-lift
+akisini bozarken, tum yuzeyleri tutan kandirilmis bir insani durdurmuyordu.
+`test/emergency-stop-operator-surfaces.test.js` (CLI stop+lift) regresyonu
+yakaladi; kural kaldirildi, stop author ledger'da kayitli kalmaya devam
+ediyor. Gerekce kodu `lib/emergency-stop.js lift()` icinde. Gercek quorum,
+operator yuzeyleri insan kimligi tasiyana kadar mumkun degil — takip #2592.
 
 ## Kapsam disi (bilincli)
 
@@ -62,7 +65,7 @@ HUQAN kendi eBPF probe'unu yazmaz. OS seviyesi izolasyon gerektiginde mevcut den
 - Manuel dogrulama:
   - `rm .stop.json` sonra `check()` => `stopped:true reason=integrity_violation` (ledger replay kurtariyor).
   - `ledger.jsonl` hash'iyle oyna sonra `check()` => `ledger_hash_mismatch` => `integrity_violation`.
-  - `workspace lift` ayni actor => `quorum_distinct_approver_required`, farkli actor => basarili.
+  - CLI `stop --scope workspace` + `lift` ayni actor ile calisiyor (quorum geri alindi).
 
 ## Sonraki adimlar
 

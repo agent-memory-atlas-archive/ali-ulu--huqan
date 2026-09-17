@@ -118,6 +118,34 @@
     return { ok: true, items: result.body.items || [], hasMore: result.body.hasMore, nextCursor: result.body.nextCursor };
   }
 
+  // ---- emergency-stop integrity (#2591) ----
+  // Operator-only read: the route requires a scoped, single-use operator
+  // capability (x-huqan-operator-capability). Without one the call 403s (or
+  // 404s when no operator token is configured) and callers must treat the
+  // state as unknown -- never as clean. No polling: a capability is spent
+  // on first use, so every check is one explicit call.
+  async function fetchEmergencyStopState({ agentId, operatorCapability } = {}) {
+    const params = new URLSearchParams();
+    if (agentId) params.set('agentId', String(agentId));
+    const qs = params.toString();
+    const extra = operatorCapability ? { 'x-huqan-operator-capability': String(operatorCapability) } : {};
+    let response;
+    try {
+      response = await fetch(withWorkspace(`/api/v2/emergency-stops${qs ? `?${qs}` : ''}`), { headers: authHeaders(extra), cache: 'no-store' });
+    } catch (error) {
+      return { ok: false, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) {
+      return {
+        ok: false,
+        status: response.status,
+        error: body.error || { code: `HTTP_${response.status}`, message: `HTTP ${response.status}` },
+      };
+    }
+    return { ok: true, state: (body.data || {}) };
+  }
+
   // ---- receipts ----
   async function fetchReceipt(receiptId) {
     const result = await getJson(`/api/v2/trust-receipts/${encodeURIComponent(receiptId)}`);
@@ -138,6 +166,7 @@
       sessionStorage.removeItem('huqan-workspace');
     },
     fetchGateDecisions,
+    fetchEmergencyStopState,
     fetchOpenApprovals,
     decideApproval,
     fetchActivity,
