@@ -174,6 +174,59 @@
   }));
   $('#ov-refresh')?.addEventListener('click', load);
 
+  // ---------- emergency-stop integrity banner (#2591, operator-only) ----------
+  // No polling: the endpoint needs a scoped single-use operator capability,
+  // so every check is one explicit click with a fresh capability pasted in.
+  // The localStorage flag is set only by a verified violation response and
+  // cleared only by a verified clean one; an unavailable answer (403/404 or
+  // network) changes nothing -- unknown is not clean.
+  const IBANNER_FLAG = 'huqan-integrity-flag';
+
+  function readIntegrityFlag() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(IBANNER_FLAG) || 'null');
+      if (parsed && parsed.workspaceId === Data.workspace() && parsed.seenAt) return parsed;
+    } catch (_) { /* private browsing or corrupt flag: show no banner */ }
+    return null;
+  }
+
+  function renderIntegrityBanner(flag) {
+    const el = $('#ibanner');
+    if (!el) return;
+    if (!flag) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.innerHTML = '<b>Emergency-stop integrity violation</b> &mdash; agents stay halted.'
+      + `<small>Recorded ${esc(new Date(flag.seenAt).toLocaleString())} in workspace <span class="mono">${esc(flag.workspaceId)}</span>.`
+      + ' Clearing requires an operator lift; this banner does not clear itself.'
+      + `${flag.reason ? ` Signal: <span class="mono">${esc(flag.reason)}</span>.` : ''}</small>`;
+  }
+
+  async function checkIntegrityOnce() {
+    const input = $('#ib-cap');
+    const capability = (input ? input.value : '').trim();
+    if (input) input.value = ''; // single-use: never retain it
+    if (!capability) { toast('Paste a fresh operator capability first.'); return; }
+    const result = await Data.fetchEmergencyStopState({ operatorCapability: capability });
+    if (!result.ok) {
+      toast(`Integrity check unavailable: ${result.error?.message || result.error?.code || 'unknown error'}. Nothing changed.`);
+      return;
+    }
+    const state = result.state || {};
+    if (state.integrityViolation === true || state.reason === 'emergency_stop_integrity_violation') {
+      const flag = { workspaceId: Data.workspace(), seenAt: new Date().toISOString(), reason: String((state.details && state.details.ledgerReason) || state.reason || '') };
+      try { localStorage.setItem(IBANNER_FLAG, JSON.stringify(flag)); } catch (_) { /* banner still shows this session */ }
+      renderIntegrityBanner(flag);
+      toast('Integrity violation confirmed. Agents stay halted.');
+      return;
+    }
+    try { localStorage.removeItem(IBANNER_FLAG); } catch (_) { /* ignore */ }
+    renderIntegrityBanner(null);
+    toast(state.stopped ? 'Stopped, ledger verifies.' : 'Ledger verifies, no violations.');
+  }
+
+  $('#ib-check')?.addEventListener('click', checkIntegrityOnce);
+  renderIntegrityBanner(readIntegrityFlag());
+
   UI.registerView('overview', { onShow: load });
   window.HuqanControlRoomOverview = { reload: load };
 })();

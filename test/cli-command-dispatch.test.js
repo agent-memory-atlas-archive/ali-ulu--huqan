@@ -318,7 +318,8 @@ const GOLDEN = {
   // #2505 F re-recorded `yardım`: the help text is generated from the workflow
   // contract, which gained the `stop` and `lift` commands. Diffing the help
   // text against main shows exactly those two added lines and nothing else.
-  'yardım': '2a676d259a970ad4585cab48a056ff0ba087ed8f165e05620aa0259e6a70c897',
+  // #2591 re-recorded it again for the single added `integrity` usage line.
+  'yardım': '3e1f64cd4ffdfcaf5b37a722b3bfbb1177afaf3baced4198bb045a00b2997102',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };
