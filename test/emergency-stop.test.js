@@ -208,6 +208,38 @@ test('an A2A exchange naming a stopped agent is refused', (t) => {
   }
 });
 
+function ledgerEntriesOf(ledger) {
+  const file = path.join(ledger.directory, 'ledger.jsonl');
+  if (!fs.existsSync(file)) return [];
+  return fs.readFileSync(file, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+}
+
+test('stop and lift carry an operator identity claim on the record, ledger entry and receipt (#2601)', (t) => {
+  const ledger = ledgerIn(t);
+  const stopped = ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment', actor: 'operator:cli', operatorIdentity: 'human:alice' });
+  assert.equal(stopped.record.operatorIdentity, 'human:alice');
+  assert.equal(stopped.record.actor, 'operator:cli');
+  assert.equal(stopped.receipt.operatorIdentity, 'human:alice');
+  assert.equal(stopped.ledgerEntry.operatorIdentity, 'human:alice');
+  const lifted = ledger.lift({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed', actor: 'operator:cli', operatorIdentity: 'human:alice' });
+  assert.equal(lifted.receipt.operatorIdentity, 'human:alice');
+  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).record, null, 'lift clears the replayed record');
+  const restopped = ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'again', actor: 'operator:cli', operatorIdentity: 'human:bob' });
+  assert.equal(restopped.created, true);
+  const replayed = ledger.check({ workspaceId: 'w', agentId: 'a1' });
+  assert.equal(replayed.record.operatorIdentity, 'human:bob', 'replay carries the author identity for the future quorum rule');
+  const entries = ledgerEntriesOf(ledger);
+  assert.deepEqual(entries.map((entry) => [entry.action, entry.operatorIdentity]), [['stop', 'human:alice'], ['lift', 'human:alice'], ['stop', 'human:bob']]);
+});
+
+test('absent operator identity reads as null everywhere, never as the role actor (#2601)', (t) => {
+  const ledger = ledgerIn(t);
+  const stopped = ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment', actor: 'operator:cli' });
+  assert.equal(stopped.record.operatorIdentity, null);
+  assert.equal(stopped.receipt.operatorIdentity, null);
+  assert.equal(stopped.ledgerEntry.operatorIdentity, null);
+});
+
 test('operator argument shapes default to the default workspace (#2505 F-2b)', () => {
   const { checkArguments, changeArguments } = require('../lib/emergency-stop');
   assert.deepEqual(checkArguments({}), { workspaceId: 'default', agentId: '' });
