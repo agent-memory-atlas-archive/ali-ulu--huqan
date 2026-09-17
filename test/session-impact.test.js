@@ -205,6 +205,86 @@ test("the session maximum includes this action's own score", () => {
   assert.equal(cumulative.maxScore, blastRadius.score);
 });
 
+test('recorded sandbox escapes are counted per session without moving the score total', () => {
+  const escapes = [
+    { operationId: 'sandbox-isolation:1', decision: 'block', reason: 'path-escape', workspaceId: 'default' },
+    { operationId: 'sandbox-isolation:2', decision: 'quarantine', reason: 'network-egress', workspaceId: 'team-a' },
+  ];
+  const summary = summarizeSessionImpact([sealed({ sessionId: 's1', score: 40 })], 's1', { sandboxEscapes: escapes });
+  assert.equal(summary.sandboxEscapeAttempts, 2);
+  assert.equal(summary.recordedScoreTotal, 40);
+  assert.equal(summary.scoredActions, 1);
+  assert.equal(summary.status, 'partial');
+  assert.match(summary.reasons.join('\n'), /2 sandbox escape attempt\(s\) recorded in workspace\(s\) default, team-a/);
+});
+
+test('without an escape stream the count is null (not read), never 0', () => {
+  const summary = summarizeSessionImpact([sealed({ sessionId: 's1', score: 40 })], 's1');
+  assert.equal(summary.sandboxEscapeAttempts, null);
+  assert.deepEqual(summary.reasons, []);
+});
+
+test('an empty escape stream is a measured 0 and keeps a clean history computed', () => {
+  const summary = summarizeSessionImpact([sealed({ sessionId: 's1', score: 40 })], 's1', { sandboxEscapes: [] });
+  assert.equal(summary.sandboxEscapeAttempts, 0);
+  assert.equal(summary.status, 'computed');
+  assert.deepEqual(summary.reasons, []);
+});
+
+test('a malformed escape stream never breaks the summary', () => {
+  const summary = summarizeSessionImpact([sealed({ sessionId: 's1', score: 40 })], 's1', { sandboxEscapes: 'nope' });
+  assert.equal(summary.sandboxEscapeAttempts, null);
+  assert.equal(summary.recordedScoreTotal, 40);
+});
+
+test('the guard carries caller-supplied escapes onto the receipt without moving the decision', () => {
+  const escapes = [{ operationId: 'sandbox-isolation:9', decision: 'block', reason: 'path-escape', workspaceId: 'default' }];
+  const withEscapes = guard([sealed({ sessionId: 'budget-session', score: 40 })], { sandboxEscapes: escapes });
+  const withoutEscapes = guard([sealed({ sessionId: 'budget-session', score: 40 })]);
+  const { cumulative } = withEscapes.receipt.metadata.justification;
+  assert.equal(cumulative.sandboxEscapeAttempts, 1);
+  assert.match(cumulative.reasons.join('\n'), /1 sandbox escape attempt\(s\) recorded/);
+  assert.equal(withEscapes.decision, withoutEscapes.decision);
+  assert.equal(withEscapes.reason, withoutEscapes.reason);
+  assert.equal(withoutEscapes.receipt.metadata.justification.cumulative.sandboxEscapeAttempts, null);
+});
+
+test('rejection receipts in the session are counted as refused actions', () => {
+  const summary = summarizeSessionImpact([
+    sealed({ sessionId: 's1', score: 40 }),
+    sealed({ sessionId: 's1', score: 30, kind: 'external_action_rejection_receipt' }),
+    sealed({ sessionId: 's2', score: 90, kind: 'external_action_rejection_receipt' }),
+  ], 's1');
+  assert.equal(summary.refusedActions, 1);
+  assert.equal(summary.recordedScoreTotal, 70);
+  assert.equal(summary.status, 'partial');
+  assert.match(summary.reasons.join('\n'), /1 refused action\(s\) in the session \(rejection receipts\)/);
+});
+
+test('review receipts are legitimate flow, not refusals; no history means no count', () => {
+  const summary = summarizeSessionImpact([
+    sealed({ sessionId: 's1', score: 40 }),
+    sealed({ sessionId: 's1', score: 30, kind: 'external_action_review_receipt' }),
+  ], 's1');
+  assert.equal(summary.refusedActions, 0);
+  assert.equal(summary.status, 'computed');
+  const noHistory = summarizeSessionImpact(undefined, 's1');
+  assert.equal(noHistory.refusedActions, null);
+  assert.equal(noHistory.status, 'unknown');
+});
+
+test('the guard receipt carries the refusal count without moving the decision', () => {
+  const result = guard([
+    sealed({ sessionId: 'budget-session', score: 40 }),
+    sealed({ sessionId: 'budget-session', score: 30, kind: 'external_action_rejection_receipt' }),
+  ]);
+  const plain = guard([sealed({ sessionId: 'budget-session', score: 40 })]);
+  const { cumulative } = result.receipt.metadata.justification;
+  assert.equal(cumulative.refusedActions, 1);
+  assert.equal(result.decision, plain.decision);
+  assert.equal(result.reason, plain.reason);
+});
+
 test('readReceiptHistory marks a receipt file it had to cut', () => {
   const fs = require('node:fs');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-receipt-history-'));

@@ -51,7 +51,11 @@ function signedRequest(bodyObject, overrides = {}) {
 }
 
 function tempStore(t) {
-  const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-handler-'));
+  // Realpath the sandbox: the beta store deliberately refuses roots that
+  // traverse symlinks, so sandboxes must be built under the real temp path
+  // (macOS /var -> /private/var, #2544). Same precedent as the A2A
+  // symlinked-ancestor refusal (#2534): the guard stays, tests use real paths.
+  const rootPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-handler-')));
   t.after(() => fs.rmSync(rootPath, { recursive: true, force: true }));
   return { rootPath, store: createGitHubAppBetaStore({ rootPath }) };
 }

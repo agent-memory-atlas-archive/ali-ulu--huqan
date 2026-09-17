@@ -65,7 +65,7 @@ function loadPdfDocument() {
   }
   return PDFDocumentCache;
 }
-const { createPathError, isPathWithinRoot, resolvePathWithinRoot } = require('../lib/path-safety');
+const { canonicalizePath, createPathError, isPathWithinRoot, resolvePathWithinRoot, withRealpathSpellings } = require('../lib/path-safety');
 const { resolveReceiptsDir } = require('../persistencePaths');
 
 const REPO_ROOT = path.join(__dirname, '..');
@@ -96,8 +96,7 @@ function resolveExportRoot(candidateDir) {
   if (isPathWithinRoot(REPO_ROOT, absolute)) {
     return DEV_RECEIPTS_ROOT;
   }
-  const roots = [defaultOutputDir(), os.tmpdir(), process.cwd()]
-    .map((root) => path.resolve(root))
+  const roots = withRealpathSpellings([defaultOutputDir(), os.tmpdir(), process.cwd()])
     .filter((root) => isPathWithinRoot(root, absolute))
     .sort((left, right) => right.length - left.length);
   if (!roots.length) {
@@ -190,9 +189,9 @@ function resolveReceiptTarget(receipt, outputDir, extension) {
   const filePath = path.join(resolvedDir, `${stem}.${extension}`);
 
   // Defence in depth: the stem is already a validated single segment, so this
-  // should be unreachable -- it exists so any future loosening of the stem
-  // rules still cannot write outside the resolved directory.
-  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(exportRoot, filePath)) {
+  // should be unreachable; compare canonical spellings (canonicalizePath
+  // covers not-yet-created roots via the longest existing ancestor).
+  if (path.dirname(filePath) !== resolvedDir || !isPathWithinRoot(canonicalizePath(exportRoot, true), filePath)) {
     throw createPathError(
       'PATH_OUTSIDE_ALLOWED_ROOT',
       'Path escapes allowed root',

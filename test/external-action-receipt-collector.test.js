@@ -32,7 +32,12 @@ function batch(receipts, tenant = { workspaceId: 'default', ownerActorId: 'owner
 }
 
 function store(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-collector-'));
+  // Realpath the scratch root: ingestReceiptBatch() returns canonicalized
+  // paths (resolvePathWithinRoot), so prefix assertions in this file must
+  // use the same spelling. Under a symlinked tmpdir (macOS /var ->
+  // /private/var, #2556) the raw spelling mismatches. Same convention as
+  // cli.test.js, backupRestore.test.js and the adapter tests.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-collector-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }

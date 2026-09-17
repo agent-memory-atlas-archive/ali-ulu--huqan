@@ -79,8 +79,16 @@ function resolveExportRoot(candidatePath) {
   if (isPathWithinRoot(REPO_ROOT, absolute)) {
     return BENCHMARKS_ROOT;
   }
-  const roots = [path.dirname(defaultOutputPath()), os.tmpdir(), process.cwd()]
-    .map((root) => path.resolve(root))
+  // Accept each root's real path too, so a canonical candidate under a
+  // symlinked root (macOS /var -> /private/var, #2554) still matches.
+  // Same convention as getCliReadRoots in lib/cli-helpers.js. True escapes
+  // still fail closed below via resolvePathWithinRoot.
+  const resolved = [path.dirname(defaultOutputPath()), os.tmpdir(), process.cwd()]
+    .map((root) => path.resolve(root));
+  const real = resolved.map((entry) => {
+    try { return fs.realpathSync(entry); } catch (_) { return entry; }
+  });
+  const roots = [...new Set([...resolved, ...real])]
     .filter((root) => isPathWithinRoot(root, absolute))
     .sort((left, right) => right.length - left.length);
   if (!roots.length) {

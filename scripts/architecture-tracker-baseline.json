@@ -234,12 +234,12 @@
     },
     "lib/memory-admission-gate.js": {
       "band": "recorded",
-      "lines": 509,
+      "lines": 506,
       "signals": []
     },
     "lib/memory-schema.js": {
       "band": "recorded",
-      "lines": 568,
+      "lines": 565,
       "signals": []
     },
     "lib/memory-store-json-persistence.js": {
@@ -278,7 +278,7 @@
     },
     "lib/receipt/receipt-read-index.js": {
       "band": "recorded",
-      "lines": 640,
+      "lines": 637,
       "signals": []
     },
     "lib/receipt/trusted-key-resolver.js": {
@@ -330,7 +330,7 @@
     },
     "plugins/receipt-exporter.js": {
       "band": "recorded",
-      "lines": 431,
+      "lines": 430,
       "signals": []
     },
     "plugins/repo-memory.js": {

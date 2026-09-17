@@ -38,7 +38,10 @@ const HEAD_SHA = 'd'.repeat(40);
 const APP_ID = '123456';
 
 function tempRoot(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-http-'));
+  // Realpath the sandbox: the beta store deliberately refuses roots that
+  // traverse symlinks (macOS /var -> /private/var, #2555). Guard stays,
+  // tests use real paths -- same precedent as #2534.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-http-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }
