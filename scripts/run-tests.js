@@ -14,6 +14,13 @@
 
 const { spawn } = require('node:child_process');
 const { createTestStateSandbox } = require('./test-state-sandbox');
+const { verifyTestEnvironment } = require('./verify-test-environment');
+
+const envErrors = verifyTestEnvironment();
+if (envErrors.length > 0) {
+  for (const error of envErrors) process.stderr.write(`test environment: ${error}\n`);
+  process.exit(1);
+}
 
 const sandbox = createTestStateSandbox();
 
