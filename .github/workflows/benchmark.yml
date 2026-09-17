@@ -216,6 +216,21 @@ jobs:
           fetch-depth: 0
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A push, nightly or manual run checks out the baseline branch at the
+      # commit that triggered it, then fetches whatever tip main has reached by
+      # fetch time. When main moves in between -- an ordinary burst of merges --
+      # HEAD sits on the triggering commit while origin/main has moved past it,
+      # and the live Git guard read that as a baseline HEAD trailing its remote
+      # and failed closed on an unchanged tree (#2616, run 35284470491).
+      # The guard's baseline-branch rule is about a local clone sitting behind
+      # its remote; a CI checkout is deliberately at the triggering commit. On a
+      # non-pull-request run the baseline this run validates is therefore pinned
+      # to the commit under test, which keeps the ancestry and identity checks
+      # measuring that commit instead of a moving ref. Pull-request runs keep
+      # the fetched tip, because there the branch must descend from current main.
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
       # actions/checkout intentionally leaves pull-request worktrees detached.
       # The live Git guard requires branch identity as evidence; name the
       # checked-out commit without changing the commit or weakening ancestry.
@@ -371,6 +386,21 @@ jobs:
       # so fetch the baseline explicitly after checkout.
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A push, nightly or manual run checks out the baseline branch at the
+      # commit that triggered it, then fetches whatever tip main has reached by
+      # fetch time. When main moves in between -- an ordinary burst of merges --
+      # HEAD sits on the triggering commit while origin/main has moved past it,
+      # and the live Git guard read that as a baseline HEAD trailing its remote
+      # and failed closed on an unchanged tree (#2616, run 35284470491).
+      # The guard's baseline-branch rule is about a local clone sitting behind
+      # its remote; a CI checkout is deliberately at the triggering commit. On a
+      # non-pull-request run the baseline this run validates is therefore pinned
+      # to the commit under test, which keeps the ancestry and identity checks
+      # measuring that commit instead of a moving ref. Pull-request runs keep
+      # the fetched tip, because there the branch must descend from current main.
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
       # Pull-request checkouts are detached by design. Name the checked-out
       # commit so live Git validation has branch identity as evidence; this
       # does not alter the commit or weaken the ancestry check.
