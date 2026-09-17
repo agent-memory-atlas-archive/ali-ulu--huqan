@@ -23,8 +23,7 @@ const DEFAULT_FILE_TIMEOUT_MS = 90_000;
 // and run it, rather than because they hang.
 //
 // kernel-facade-contract runs a real `npm pack` + `npm install` of the tarball
-// (the install has its own 300s budget; this file's shard deadline is 600s).
-// On the Windows
+// (internal subprocess timeouts alone allow 60s + 15s + 120s). On the Windows
 // runner that crossed the 90s cap intermittently, killing a file that was still
 // working and reddening CI on PRs that never touched it. The other three spawn
 // a full external runner or a browser; they are slow by construction too.
@@ -41,10 +40,6 @@ const HEAVY_FILES = Object.freeze(new Set([
 ]));
 
 function fileTimeoutMs(relativePath) {
-  // kernel-facade-contract alone: the 300s install budget plus pack/init and
-  // the installed smoke checks fit in 600s. Every other heavy file keeps the
-  // 240s cap, and ordinary files keep the 90s hang detector (#1847).
-  if (relativePath === 'test/kernel-facade-contract.test.js') return 600_000;
   return HEAVY_FILES.has(relativePath) ? HEAVY_FILE_TIMEOUT_MS : DEFAULT_FILE_TIMEOUT_MS;
 }
 
