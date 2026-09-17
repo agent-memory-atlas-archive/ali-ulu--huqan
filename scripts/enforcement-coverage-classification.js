@@ -138,6 +138,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'writes the emergency stop records that the identity gate, MCP dispatch, the agent step executor and A2A admission read before acting, and appends the receipt of each stop and lift; gating these writes through admission would be circular. The directory comes from HUQAN_EMERGENCY_STOP_DIR or the state root, never a request field; each record file is named by a hash of its scope and created exclusively, so a stop cannot be overwritten',
   }),
+  'lib/integrity-violation-notifier.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'writes the siren cursor recording the last notified ledger seq; invoked explicitly by the operator via the integrity CLI command, never from check(); the cursor defaults beside the ledger directory and is fixed JSON',
+  }),
 
   // ── operator tools ─────────────────────────────────────────────────────
   'backupRestore.js': Object.freeze({
