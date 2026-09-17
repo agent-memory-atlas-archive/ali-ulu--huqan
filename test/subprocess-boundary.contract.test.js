@@ -42,7 +42,7 @@ function decide(args, toolName, workspaceRoot) {
     args,
     cwd: workspaceRoot,
     workspaceRoot,
-  }, { receiptWriter: { append() {} }, allowedCommands: ['node'] });
+  }, { receiptWriter: { append() {} }, allowedCommands: ['node'], requireIdentityCard: false });
 }
 
 test('an approved command runs, and what it then does never reaches the guard', () => {

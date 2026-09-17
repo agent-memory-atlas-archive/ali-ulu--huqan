@@ -114,7 +114,7 @@ function evaluate(overrides, options = {}) {
     cwd: workspaceRoot,
     workspaceRoot,
     ...overrides,
-  }, { receiptWriter: memoryWriter(), ...options });
+  }, { receiptWriter: memoryWriter(), requireIdentityCard: false, ...options });
 }
 
 test('blocks writing the hook config that decides whether the guard runs', () => {

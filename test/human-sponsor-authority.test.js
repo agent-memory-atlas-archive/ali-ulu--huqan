@@ -15,9 +15,14 @@ const authority = () => ({ schemaVersion: 'huqan.human-sponsor-authority.v1', pr
     capabilities: ['file_read', 'memory_mutation'], publicKeys: [publicKeyPem] },
 ], background: [{ source: 'dream', workspaceId: 'default', actorId: 'human:alice' }] });
 function invocation(overrides = {}) {
+  // Cards expire (#2505 C: expiry required, 24h max), so the fixture dates
+  // float on the real clock instead of pinning a 2026-01 window.
+  const now = Date.now();
   const { card } = normalizeAgentIdentityCard({ schemaVersion: 'huqan.agent-identity-card.v1',
     agentId: 'agent:test', agentName: 'test', ownerActorId: 'human:alice',
-    workspaceId: 'default', capabilities: ['file_read'], issuedAt: '2026-01-01T00:00:00.000Z' });
+    workspaceId: 'default', capabilities: ['file_read'],
+    issuedAt: new Date(now - 3600000).toISOString(),
+    expiresAt: new Date(now + 3600000).toISOString() });
   return { invocationId: 'sponsor-test', sessionId: 'session-test', turnId: 'turn-test', agentName: 'test', toolName: 'Read',
     args: { file_path: path.join(process.cwd(), 'README.md') }, cwd: process.cwd(),
     workspaceRoot: process.cwd(), workspaceId: 'default', identity: card,

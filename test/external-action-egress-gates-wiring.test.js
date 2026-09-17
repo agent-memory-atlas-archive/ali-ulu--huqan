@@ -12,7 +12,9 @@ const assert = require('node:assert/strict');
 const { evaluateExternalAction } = require('../lib/external-action-guard');
 
 const WORKSPACE_ROOT = process.cwd();
-const OPTIONS = Object.freeze({ environment: {}, dataResidency: null, receiptWriter: { append() {} } });
+// Identity is pinned in its own file; these tests isolate the AB9/AB12/AB13
+// hand-offs, so the #2505 C default (block unattested) is opted out here.
+const OPTIONS = Object.freeze({ environment: {}, dataResidency: null, receiptWriter: { append() {} }, requireIdentityCard: false });
 
 // A shell fetch: AB8 and AB9 leave it at review, so only AB13 can make it a block.
 // Tool-shaped calls such as WebFetch are already blocked by AB2 and would prove nothing.
@@ -58,6 +60,7 @@ test('an AB12 residency block is critical risk at the full score, not the generi
   }, {
     receiptWriter: { append() {} },
     dataResidency: { allowedDestinations: ['kurum.gov.tr'] },
+    requireIdentityCard: false,
   });
   assert.equal(result.findings.find((item) => item.gate === 'AB12').decision, 'block');
   assert.equal(result.decision, 'block');

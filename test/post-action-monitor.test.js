@@ -41,6 +41,7 @@ function invocation(overrides = {}) {
       workspaceId: 'default',
       capabilities: ['file_read'],
       issuedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-01T12:00:00.000Z',
     },
     ...overrides,
   };
@@ -64,6 +65,9 @@ function admit(input = invocation()) {
   const result = evaluateExternalAction(input, {
     receiptWriter: { append: receipt => persisted.push(receipt) },
     now: () => '2026-01-01T00:10:00.000Z',
+    // These tests pin card expiry above and exercise monitoring, not card
+    // signatures (#2505 C now requires signatures by default).
+    requireSignedIdentityCard: false,
   });
   assert.equal(result.decision, 'allow');
   return { result, persisted };
@@ -117,7 +121,7 @@ test('an unconfigured guard observes all three gates by default (#2157)', () => 
   // shared default ledger records `admit` as the session baseline.
   const widened = evaluateExternalAction(
     { ...input, identity: { ...input.identity, capabilities: ['file_read', 'shell'] } },
-    { receiptWriter: { append() {} }, now: () => '2026-01-01T00:10:01.000Z' },
+    { receiptWriter: { append() {} }, now: () => '2026-01-01T00:10:01.000Z', requireSignedIdentityCard: false },
   );
   assert.ok(
     widened.findings.some(finding => finding.gate === 'identity-escalation'),
@@ -333,6 +337,7 @@ test('hash-valid quarantine evidence is a critical violation that demotes T3 to 
     continuousMonitoring: { enabled: true, baseline: baseline(), activation: activation(), receipts: history },
     receiptWriter: { append() {} },
     now: () => '2026-01-01T00:12:00.000Z',
+    requireSignedIdentityCard: false,
   });
   const autonomyFinding = enforced.findings.find(finding => finding.gate === 'graduated-autonomy');
   assert.equal(autonomyFinding.tier, 'T1');
