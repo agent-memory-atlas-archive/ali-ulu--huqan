@@ -27,7 +27,7 @@ function guard(command, options = {}) {
     args: { command },
     cwd: process.cwd(),
     workspaceRoot: process.cwd(),
-  }, { receiptWriter: writer, ...options });
+  }, { receiptWriter: writer, requireIdentityCard: false, ...options });
 }
 
 function ab12(result) {

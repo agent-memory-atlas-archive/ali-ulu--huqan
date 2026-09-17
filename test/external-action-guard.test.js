@@ -39,7 +39,7 @@ function memoryWriter() {
 
 test('unknown future agent uses the brand-independent envelope and safe read is allowed', () => {
   const writer = memoryWriter();
-  const result = evaluateExternalAction(invocation(), { receiptWriter: writer });
+  const result = evaluateExternalAction(invocation(), { receiptWriter: writer, requireIdentityCard: false });
   assert.equal(result.decision, 'allow');
   assert.equal(result.canExecute, true);
   assert.equal(result.envelope.agent.name, 'future-agent-2030');
@@ -61,7 +61,7 @@ test('security-sensitive Windows shutdown is blocked before execution', () => {
 });
 
 test('unknown shell command is never silently allowed', () => {
-  const result = evaluateExternalAction(invocation({ args: { command: 'custom-agent-tool --do-something' } }));
+  const result = evaluateExternalAction(invocation({ args: { command: 'custom-agent-tool --do-something' } }), { requireIdentityCard: false });
   assert.equal(result.decision, 'review');
   assert.equal(result.canExecute, false);
 });
@@ -80,7 +80,7 @@ test('read-looking shell commands cannot smuggle filesystem side effects', () =>
     ['git remote set-url origin https://example.invalid/repo', 'review'],
   ];
   for (const [command, expected] of cases) {
-    const result = evaluateExternalAction(invocation({ args: { command } }));
+    const result = evaluateExternalAction(invocation({ args: { command } }), { requireIdentityCard: false });
     assert.equal(result.decision, expected, command);
     assert.equal(result.canExecute, false, command);
   }
@@ -111,7 +111,7 @@ test('filesystem write inside workspace requires review', () => {
   const result = evaluateExternalAction(invocation({
     toolName: 'Write',
     args: { file_path: path.join(workspaceRoot, 'local.txt'), content: 'x' },
-  }));
+  }), { requireIdentityCard: false });
   assert.equal(result.decision, 'review');
   assert.equal(result.canExecute, false);
 });
@@ -170,7 +170,7 @@ test('outcome receipt is separate from admission receipt and links to it', () =>
 });
 
 test('Claude review projects to ask while Codex review fails closed to deny', () => {
-  const review = evaluateExternalAction(invocation({ args: { command: 'custom-action' } }));
+  const review = evaluateExternalAction(invocation({ args: { command: 'custom-action' } }), { requireIdentityCard: false });
   const claude = projectHookDecision('claude-code', review);
   const codex = projectHookDecision('codex', review);
   assert.equal(claude.output.hookSpecificOutput.permissionDecision, 'ask');
@@ -193,7 +193,7 @@ test('Claude and Codex native hook payloads normalize to the universal envelope 
 // about the decision pass an explicit null writer rather than appending to the
 // deployment's real trail.
 test('OpenCode plugin throws before a reviewed tool executes', async () => {
-  const plugin = createOpenCodeGuardPlugin({ receiptWriter: null });
+  const plugin = createOpenCodeGuardPlugin({ receiptWriter: null, requireIdentityCard: false });
   const hooks = await plugin({ directory: workspaceRoot });
   await assert.rejects(
     hooks['tool.execute.before'](
@@ -213,7 +213,7 @@ test('in-process guards leave a receipt behind, like the CLI hook does', async (
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   const receiptPath = path.join(base, 'receipts.jsonl');
 
-  const plugin = createOpenCodeGuardPlugin({ receiptPath });
+  const plugin = createOpenCodeGuardPlugin({ receiptPath, requireIdentityCard: false });
   const hooks = await plugin({ directory: workspaceRoot });
   await assert.rejects(hooks['tool.execute.before'](
     { tool: 'bash', sessionID: 's1', callID: 'c1' },
@@ -243,7 +243,7 @@ test('an explicit null writer opts an in-process guard out of receipts', async (
 
 test('Pi adapter returns block for reviewed calls', async () => {
   let handler;
-  registerPiGuard({ on(event, callback) { if (event === 'tool_call') handler = callback; } }, { cwd: workspaceRoot, sessionId: 's1', receiptWriter: null });
+  registerPiGuard({ on(event, callback) { if (event === 'tool_call') handler = callback; } }, { cwd: workspaceRoot, sessionId: 's1', receiptWriter: null, requireIdentityCard: false });
   const decision = await handler({ toolName: 'bash', toolCallId: 'c1', input: { command: 'custom-action' } }, {});
   assert.equal(decision.block, true);
   assert.match(decision.reason, /HUQAN review/);
@@ -265,7 +265,7 @@ test('side-effect-free commands are read-only without a deployment saying so', (
   // included, because the safe list held 14 entries. Commands that cannot
   // change anything on their own belong in it; composition is handled above.
   for (const command of ['echo hi', 'cat README.md', 'head -5 README.md', 'wc -l README.md', 'node --version', 'npm -v']) {
-    assert.equal(evaluateExternalAction(invocation({ args: { command } })).decision, 'allow', command);
+    assert.equal(evaluateExternalAction(invocation({ args: { command } }), { requireIdentityCard: false }).decision, 'allow', command);
   }
 });
 
@@ -282,7 +282,7 @@ test('the deployment command list promotes only what it is allowed to promote', 
     ['rm -rf /', 'block'],
   ];
   for (const [command, expected] of cases) {
-    const result = evaluateExternalAction(invocation({ args: { command } }), { allowedCommands });
+    const result = evaluateExternalAction(invocation({ args: { command } }), { allowedCommands, requireIdentityCard: false });
     assert.equal(result.decision, expected, command);
   }
 });
@@ -317,7 +317,7 @@ test('a Codex review says it is a pending decision, since the decision field can
   // an output it rejects is one it ignores -- which would turn a review into a
   // silent allow. Review is therefore enforced as deny, and the difference has
   // to survive in the reason.
-  const options = { workspaceRoot, allowControlPlane: true, receiptWriter: null };
+  const options = { workspaceRoot, allowControlPlane: true, receiptWriter: null, requireIdentityCard: false };
   const review = evaluateHookInvocation('codex', codexPayload(), options);
   assert.equal(review.result.decision, 'review');
   const reviewed = review.projection.output.hookSpecificOutput;

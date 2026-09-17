@@ -67,7 +67,9 @@ const EXTERNAL_CASES = {
 function observeExternal() {
   const out = {};
   for (const [name, [input, extra]] of Object.entries(EXTERNAL_CASES)) {
-    const options = { environment: {}, dataResidency: null, receiptWriter: { append() {} }, ...(extra || {}) };
+    // This file characterises gate risk levels, not the identity default
+    // (#2505 C now blocks unattested by default, covered in its own file).
+    const options = { environment: {}, dataResidency: null, receiptWriter: { append() {} }, requireIdentityCard: false, ...(extra || {}) };
     try {
       const result = evaluateExternalAction(input, options);
       out[`external/${name}`] = { decision: result.decision, reason: result.reason, score: result.risk.score, level: result.risk.level };

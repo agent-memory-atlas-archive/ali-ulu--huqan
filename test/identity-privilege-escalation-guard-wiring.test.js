@@ -23,6 +23,11 @@ const WORKSPACE_ROOT = process.cwd();
 const IN_WORKSPACE_FILE = path.join(WORKSPACE_ROOT, 'README.md');
 
 function card(capabilities) {
+  // Cards expire (#2505 C: expiry required, 24h max), so the dates float on
+  // the real clock. Cards stay unsigned: these tests pin that the guard
+  // reaches the escalation detector, and assert on its finding plus
+  // non-allow -- never on an allow that would need a signature.
+  const now = Date.now();
   return {
     schemaVersion: AGENT_IDENTITY_CARD_SCHEMA_VERSION,
     agentId: 'escalating-agent',
@@ -31,7 +36,8 @@ function card(capabilities) {
     ownerActorId: 'actor:ali',
     workspaceId: 'default',
     capabilities,
-    issuedAt: ISSUED_AT,
+    issuedAt: new Date(now - 3600000).toISOString(),
+    expiresAt: new Date(now + 3600000).toISOString(),
   };
 }
 

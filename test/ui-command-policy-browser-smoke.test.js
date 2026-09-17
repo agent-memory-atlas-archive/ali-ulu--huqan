@@ -19,6 +19,9 @@ test('command policy: real dashboard load, save, classify, conflict and locale s
   const token = 'test-browser-policy-editor-token-12345';
   const values = { HUQAN_DISABLE_AUTO_LISTEN: '1', HUQAN_API_KEY: 'test-browser-api',
     HUQAN_POLICY_EDITOR_TOKEN: token, HUQAN_EXTERNAL_GUARD_POLICY: policy,
+    // This tab tests the policy dashboard, not the identity default (#2505 C
+    // now blocks cardless calls; the spawned hook inherits this opt-out).
+    HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'false',
     HUQAN_MEMORY_PATH: path.join(directory, 'memory.json'), HUQAN_DB_PATH: path.join(directory, 'graph.sqlite') };
   const previous = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
   Object.assign(process.env, values);

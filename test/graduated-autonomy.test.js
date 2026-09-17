@@ -239,12 +239,15 @@ test('external action guard enforces and receipts the autonomy ceiling', () => {
       workspaceId: 'default',
       capabilities: ['file_write'],
       issuedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-02T00:00:00.000Z',
     },
   };
   const result = evaluateExternalAction(invocation, {
     graduatedAutonomy: { enabled: true, receipts: actionReceipts(10), activation: humanActivation() },
     receiptWriter: { append: receipt => persisted.push(receipt) },
     now: () => '2026-01-01T00:20:00.000Z',
+    // Autonomy is under test here, not card signatures (#2505 C).
+    requireSignedIdentityCard: false,
   });
   const finding = result.findings.find(entry => entry.gate === 'graduated-autonomy');
   assert.equal(finding.tier, 'T2');
@@ -279,10 +282,12 @@ test('a tier transition fails closed when its receipt cannot be persisted', () =
       workspaceId: 'default',
       capabilities: ['file_read'],
       issuedAt: '2026-01-01T00:00:00.000Z',
+      expiresAt: '2026-01-02T00:00:00.000Z',
     },
   }, {
     graduatedAutonomy: { enabled: true, receipts: actionReceipts(10), activation: humanActivation() },
     now: () => '2026-01-01T00:20:00.000Z',
+    requireSignedIdentityCard: false,
   });
   assert.equal(result.decision, 'block');
   assert.equal(result.reason, 'external_action_receipt_persistence_failed');
