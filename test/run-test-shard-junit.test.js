@@ -26,7 +26,13 @@ describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
     assert.ok(HEAVY_FILE_TIMEOUT_MS > DEFAULT_FILE_TIMEOUT_MS);
   });
 
-  test('every allowlisted file is a real test file that exists', () => {
+  test('kernel-facade-contract gets a deadline above its install budget', () => {
+  // 300s install budget + pack/init + installed smoke checks must fit inside
+  // the per-file deadline, or the shard kills a healthy install (#2630 red).
+  assert.equal(fileTimeoutMs('test/kernel-facade-contract.test.js'), 600_000);
+});
+
+test('every allowlisted file is a real test file that exists', () => {
     // A typo in the allowlist would silently do nothing: the file would run
     // under the default deadline and flake exactly as before.
     for (const file of HEAVY_FILES) {

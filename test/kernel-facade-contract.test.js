@@ -431,12 +431,15 @@ function createTarballInstall() {
 
   // npm init + install in temp project
   cp.spawnSync('npm', ['init', '-y'], { cwd: INSTALL_DIR, encoding: 'utf8', shell: true, timeout: 15000 });
-  // --foreground-scripts + --loglevel=http: a timeout must name the step and
-  // the last registry URL it was waiting on (spawnSync returns captured output
-  // even when it kills the child). This is instrumentation, not a budget
-  // change: the 120s deadline that fired on the Windows/Node 24 runner stays.
+  // Bounded install budget sized to CI evidence: the Windows/Node 24 hosted
+  // runner breached 120s while npm was still working (cold cache, hosted
+  // egress). The identical command with the exact Node/npm versions passes in
+  // 7-20s locally, warm and cold-cache, so the stall is runner-specific and
+  // unbounded above 120s -- hence 300s (2.5x the breach point), not a guess
+  // taller than the observation. --loglevel=http makes any future timeout name
+  // the last registry URL it was waiting on.
   const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
-    cwd: INSTALL_DIR, encoding: 'utf8', timeout: 120000, shell: true,
+    cwd: INSTALL_DIR, encoding: 'utf8', timeout: 300000, shell: true,
     env: { ...process.env, NO_COLOR: '1' },
   });
   const installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
