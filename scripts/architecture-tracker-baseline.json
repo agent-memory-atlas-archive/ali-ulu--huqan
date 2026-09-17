@@ -212,11 +212,6 @@
       "lines": 437,
       "signals": []
     },
-    "lib/mcp-approval-decision-handler.js": {
-      "band": "recorded",
-      "lines": 408,
-      "signals": []
-    },
     "lib/mcp-gate-adapter.js": {
       "band": "recorded",
       "lines": 606,
