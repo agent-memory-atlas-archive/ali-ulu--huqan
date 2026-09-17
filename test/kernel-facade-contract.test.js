@@ -389,9 +389,25 @@ test('4C1: packed manifest — zero forbidden entries', () => {
 
 let INSTALL_DIR = null;
 let TARBALL_PATH = null;
+let INSTALL_READY = false;
+let INSTALL_ERROR = null;
 
 function setupTarballInstall() {
-  if (INSTALL_DIR) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
+  if (INSTALL_ERROR) throw INSTALL_ERROR;
+  if (INSTALL_READY) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
+  try {
+    const info = createTarballInstall();
+    INSTALL_READY = true;
+    return info;
+  } catch (error) {
+    // Preserve the setup failure instead of running consumers against a partial
+    // node_modules tree or retrying the same expensive install for every test.
+    INSTALL_ERROR = error;
+    throw error;
+  }
+}
+
+function createTarballInstall() {
   INSTALL_DIR = path.join(os.tmpdir(), `huqan-4c1-smoke-${Date.now()}`);
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   const packResult = cp.spawnSync('npm', ['pack', '--json', '--ignore-scripts', `--pack-destination=${INSTALL_DIR}`], {
@@ -443,6 +459,7 @@ function cleanupTarballInstall() {
   if (INSTALL_DIR) {
     try { fs.rmSync(INSTALL_DIR, { recursive: true, force: true }); } catch {}
     INSTALL_DIR = null; TARBALL_PATH = null;
+    INSTALL_READY = false; INSTALL_ERROR = null;
   }
 }
 
