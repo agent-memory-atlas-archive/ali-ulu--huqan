@@ -17,9 +17,15 @@ const {
   evaluateExternalAction,
   recordExternalActionOutcome,
 } = require('../lib/external-action-guard');
+const { SIGNATURE_REASONS } = require('../lib/external-action-identity-signing');
 const { queryExternalActionsByIdentity } = require('../lib/external-action-identity-log');
 
 const ISSUED_AT = '2026-01-01T00:00:00.000Z';
+// Cards live 24h here (the #2505 C maximum), so evaluations pin `now` inside
+// the validity window instead of depending on the real clock.
+const NOW = '2026-01-01T12:00:00.000Z';
+const EXPIRES_AT = '2026-01-02T00:00:00.000Z';
+const nowOpt = () => NOW;
 // AB1 reviews any path outside the workspace allowlist, so the fixtures use an
 // absolute in-workspace target: these tests are about identity, not path risk.
 const WORKSPACE_ROOT = process.cwd();
@@ -35,8 +41,13 @@ function card(overrides = {}) {
     workspaceId: 'default',
     capabilities: ['file_read', 'shell'],
     issuedAt: ISSUED_AT,
+    expiresAt: EXPIRES_AT,
     ...overrides,
   };
+}
+
+function atNow(extra = {}) {
+  return { now: nowOpt, ...extra };
 }
 
 function invocation(overrides = {}) {
@@ -66,7 +77,7 @@ test('a well-formed capability card normalizes with a self-terminating delegatio
   assert.equal(normalized.ownerActorId, 'actor:ali');
   assert.equal(normalized.onBehalfOf, 'actor:ali', 'onBehalfOf defaults to the owning principal');
   assert.deepEqual(normalized.delegationChain, ['future-agent-2035']);
-  assert.equal(normalized.expiresAt, null);
+  assert.equal(normalized.expiresAt, EXPIRES_AT);
 });
 
 test('card rejection is explicit and never yields a partially trusted card', () => {
@@ -78,12 +89,21 @@ test('card rejection is explicit and never yields a partially trusted card', () 
     [card({ delegationChain: ['orchestrator'] }), 'identity_card_delegation_chain_not_terminal'],
     [card({ issuedAt: 'yesterday' }), 'identity_card_issued_at_invalid'],
     [card({ expiresAt: ISSUED_AT }), 'identity_card_expires_before_issued'],
+    [card({ expiresAt: undefined }), 'identity_card_expires_at_missing'],
+    [card({ expiresAt: 'not-a-date' }), 'identity_card_expires_at_invalid'],
+    [card({ expiresAt: '2026-01-02T00:00:01.000Z' }), 'identity_card_lifetime_exceeded'],
   ];
   for (const [input, expected] of cases) {
     const { card: normalized, errors } = normalizeAgentIdentityCard(input);
     assert.equal(normalized, null, `${expected} must not produce a card`);
     assert.ok(errors.includes(expected), `expected ${expected} in ${JSON.stringify(errors)}`);
   }
+});
+
+test('a card living exactly the maximum lifetime is accepted', () => {
+  const { card: normalized, errors } = normalizeAgentIdentityCard(card({ expiresAt: EXPIRES_AT }));
+  assert.deepEqual(errors, []);
+  assert.equal(normalized.expiresAt, EXPIRES_AT);
 });
 
 test('the identity hash covers authority, not invocation context', () => {
@@ -97,7 +117,7 @@ test('the identity hash covers authority, not invocation context', () => {
 // --- criterion 2: identity reaches the gate decision and the receipt --------
 
 test('an attested card is written to the gate decision and to the receipt', () => {
-  const result = evaluateExternalAction({ ...invocation(), identity: card() });
+  const result = evaluateExternalAction({ ...invocation(), identity: card() }, atNow({ requireSignedIdentityCard: false }));
   assert.equal(result.decision, 'allow');
 
   const finding = identityFinding(result);
@@ -117,27 +137,50 @@ test('an attested card is written to the gate decision and to the receipt', () =
   assert.match(result.receipt.receiptHash, /^[a-f0-9]{64}$/, 'identity is inside the hashed payload');
 });
 
-test('an action with no card is still attributed, marked unattested', () => {
-  const result = evaluateExternalAction(invocation());
-  assert.equal(result.decision, 'allow', 'absent card stays allow until a deployment opts in');
+test('an action with no card is blocked by default and still attributed', () => {
+  const result = evaluateExternalAction(invocation(), atNow());
+  assert.equal(result.decision, 'block', '#2505 C owner decision: identity is required unless opted out');
   const identity = result.receipt.metadata.identity;
   assert.equal(identity.attested, false);
   assert.equal(identity.ownerActorId, UNATTESTED_OWNER);
+  assert.equal(identityFinding(result).reason, IDENTITY_REASONS.CARD_REQUIRED);
+});
+
+test('an explicit opt-out restores allow for unattested actions', () => {
+  const result = evaluateExternalAction(invocation(), atNow({ requireIdentityCard: false }));
+  assert.equal(result.decision, 'allow');
   assert.equal(identityFinding(result).reason, IDENTITY_REASONS.UNATTESTED);
 });
 
+test('an unsigned card is blocked by default and reviewable on request', () => {
+  const blocked = evaluateExternalAction({ ...invocation(), identity: card() }, atNow());
+  assert.equal(blocked.decision, 'block', '#2505 C owner decision: signatures required unless opted out');
+  assert.equal(identityFinding(blocked).reason, SIGNATURE_REASONS.MISSING);
+
+  const review = evaluateExternalAction(
+    { ...invocation(), identity: card() },
+    atNow({ requireSignedIdentityCard: 'review' }),
+  );
+  assert.equal(review.decision, 'review');
+});
+
 test('requireIdentityCard escalates an unattested action', () => {
-  const blocked = evaluateExternalAction(invocation(), { requireIdentityCard: true });
+  const blocked = evaluateExternalAction(invocation(), atNow({ requireIdentityCard: true }));
   assert.equal(blocked.decision, 'block');
   assert.equal(identityFinding(blocked).reason, IDENTITY_REASONS.CARD_REQUIRED);
 
-  const review = evaluateExternalAction(invocation(), { requireIdentityCard: 'review' });
+  const review = evaluateExternalAction(invocation(), atNow({ requireIdentityCard: 'review' }));
   assert.equal(review.decision, 'review');
 
-  const viaEnv = evaluateExternalAction(invocation(), {
+  const viaEnv = evaluateExternalAction(invocation(), atNow({
     environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: '1' },
-  });
+  }));
   assert.equal(viaEnv.decision, 'block');
+
+  const envOptOut = evaluateExternalAction(invocation(), atNow({
+    environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'allow' },
+  }));
+  assert.equal(envOptOut.decision, 'allow');
 });
 
 test('card enforcement is fail-closed on every mismatch', () => {
@@ -145,14 +188,14 @@ test('card enforcement is fail-closed on every mismatch', () => {
     [{ identity: { schemaVersion: AGENT_IDENTITY_CARD_SCHEMA_VERSION } }, IDENTITY_REASONS.CARD_INVALID],
     [{ identity: card({ workspaceId: 'other' }) }, IDENTITY_REASONS.WORKSPACE_MISMATCH],
     [{ identity: card({ agentName: 'someone-else' }) }, IDENTITY_REASONS.AGENT_MISMATCH],
-    [{ identity: card({ issuedAt: '2099-01-01T00:00:00.000Z' }) }, IDENTITY_REASONS.NOT_YET_VALID],
+    [{ identity: card({ issuedAt: '2099-01-01T00:00:00.000Z', expiresAt: '2099-01-02T00:00:00.000Z' }) }, IDENTITY_REASONS.NOT_YET_VALID],
     [
-      { identity: card({ expiresAt: '2026-01-02T00:00:00.000Z' }) },
+      { identity: card({ expiresAt: '2026-01-01T06:00:00.000Z' }) },
       IDENTITY_REASONS.EXPIRED,
     ],
   ];
   for (const [overrides, expected] of cases) {
-    const result = evaluateExternalAction({ ...invocation(), ...overrides });
+    const result = evaluateExternalAction({ ...invocation(), ...overrides }, atNow({ requireSignedIdentityCard: false }));
     assert.equal(result.decision, 'block', expected);
     assert.equal(identityFinding(result).reason, expected);
     assert.equal(result.receipt.metadata.identity.attested, expected !== IDENTITY_REASONS.CARD_INVALID
@@ -165,7 +208,7 @@ test('a capability the card does not grant is blocked even when the action itsel
   const result = evaluateExternalAction({
     ...invocation({ toolName: 'Write', args: { file_path: path.join(WORKSPACE_ROOT, 'notes.md'), content: 'x' } }),
     identity: card({ capabilities: ['file_read'] }),
-  });
+  }, atNow({ requireSignedIdentityCard: false }));
   assert.equal(result.decision, 'block');
   const finding = identityFinding(result);
   assert.equal(finding.reason, IDENTITY_REASONS.CAPABILITY_NOT_GRANTED);
@@ -176,12 +219,12 @@ test('the wildcard capability grants every action kind', () => {
   const result = evaluateExternalAction({
     ...invocation(),
     identity: card({ capabilities: ['*'] }),
-  });
+  }, atNow({ requireSignedIdentityCard: false }));
   assert.equal(identityFinding(result).decision, 'allow');
 });
 
 test('an outcome receipt inherits the admission identity and cannot re-attribute it', () => {
-  const admission = evaluateExternalAction({ ...invocation(), identity: card() });
+  const admission = evaluateExternalAction({ ...invocation(), identity: card() }, atNow());
   const outcome = recordExternalActionOutcome(
     { ...invocation({ agentName: 'future-agent-2035' }) },
     admission.receipt,
@@ -208,14 +251,14 @@ test('the receipt trail answers "what has this identity done?"', (t) => {
   const receiptLog = path.join(dir, 'receipts.jsonl');
   const writer = { append: receipt => fs.appendFileSync(receiptLog, `${JSON.stringify(receipt)}\n`) };
 
-  evaluateExternalAction({ ...invocation({ invocationId: 'a' }), identity: card() }, { receiptWriter: writer });
+  evaluateExternalAction({ ...invocation({ invocationId: 'a' }), identity: card() }, atNow({ receiptWriter: writer, requireSignedIdentityCard: false }));
   evaluateExternalAction(
     { ...invocation({ invocationId: 'b', toolName: 'Write', args: { file_path: path.join(WORKSPACE_ROOT, 'x.md') } }), identity: card({ capabilities: ['file_read'] }) },
-    { receiptWriter: writer },
+    atNow({ receiptWriter: writer, requireSignedIdentityCard: false }),
   );
   evaluateExternalAction(
     { ...invocation({ invocationId: 'c', agentName: 'other-agent' }), identity: card({ agentId: 'other-agent', agentName: 'other-agent' }) },
-    { receiptWriter: writer },
+    atNow({ receiptWriter: writer, requireSignedIdentityCard: false }),
   );
   fs.appendFileSync(receiptLog, 'not json\n');
 
@@ -267,3 +310,4 @@ test('a missing receipt log answers empty instead of throwing', () => {
   assert.equal(result.matched, 0);
   assert.equal(result.summary.total, 0);
 });
+
