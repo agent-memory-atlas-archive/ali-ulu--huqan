@@ -38,8 +38,10 @@ const CARD = Object.freeze({
   workspaceId: 'default',
   capabilities: ['shell'],
   delegationChain: ['writer-1'],
-  issuedAt: '2026-09-01T00:00:00.000Z',
-  expiresAt: null,
+  // #2505 C: an expiry is required and the lifetime is capped at 24h, so the
+  // card is issued the day before the pinned evaluation instant below.
+  issuedAt: '2026-09-04T12:00:00.000Z',
+  expiresAt: '2026-09-05T12:00:00.000Z',
 });
 
 function scratch(t, prefix) {

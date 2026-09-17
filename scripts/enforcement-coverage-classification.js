@@ -145,6 +145,10 @@ const CLASSIFIED = Object.freeze({
     why: 'backup and restore, invoked from the CLI by a human; spawns are the SQLite backup path',
   }),
   'lib/quickstart-cli.js': Object.freeze({ role: 'operator_tool', why: 'the quickstart writes a demo workspace on explicit invocation' }),
+  'lib/integrity-violation-notifier.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the integrity siren reached only from the human-invoked `huqan integrity --notify` command; writes one cursor file beside the ledger (or an operator-named override) recording the last notified seq, and sends nothing itself, so an agent request cannot reach it',
+  }),
   'lib/self-healer/source-dogfood-simulator.js': Object.freeze({
     role: 'operator_tool',
     why: 'writes a simulated source tree for the dogfood run; never reached by an agent request',

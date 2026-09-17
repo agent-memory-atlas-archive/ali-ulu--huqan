@@ -51,7 +51,17 @@ function throughAdapter(root, command, environment = {}) {
     cwd: root,
     encoding: 'utf8',
     timeout: 60000,
-    env: { ...process.env, ...environment },
+    // A generated adapter for a bespoke agent has no identity card to present,
+    // and #2505 C now blocks unattested calls by default. These tests exercise
+    // the adapter's own fail-closed logic, so the deployment opts out the same
+    // way test/external-action-guard.test.js does with `requireIdentityCard:
+    // false`. The denylist and unstartable-gate cases below still block.
+    env: {
+      ...process.env,
+      HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'allow',
+      HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: 'allow',
+      ...environment,
+    },
   });
   return JSON.parse(run.stdout || '{}');
 }
