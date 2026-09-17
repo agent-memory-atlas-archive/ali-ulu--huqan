@@ -35,7 +35,8 @@ const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const ISO_TIME_IN_TEXT = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z\b/g;
 const ERROR_REF = /\(ref: [^)]+\)/g;
 // Provenance and trace ids are random per call; their presence and shape are what is pinned.
-const PROVENANCE_ID = /\bprov_[0-9a-f]{16}\b/g;
+// 16 hex = legacy sha1 mint, 32 hex = sha256 mint since #2610 — both redact.
+const PROVENANCE_ID = /\bprov_(?:[0-9a-f]{16}|[0-9a-f]{32})\b/g;
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
 // The external tool policy mints its own approval ids from the clock and randomness.
 const POLICY_APPROVAL_ID = /\bapproval-\d{13}-[0-9a-f]{12}\b/g;
