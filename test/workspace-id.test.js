@@ -11,7 +11,7 @@ const { normalizeWorkspaceId, WORKSPACE_ID_INVALID } = require('../lib/workspace
 const { normalizeWorkspaceId: normalizeGraphWorkspaceId } = require('../lib/graph-record-utils');
 const { normalizeWorkspaceId: normalizeMemoryWorkspaceId } = require('../lib/memory-store-utils');
 const { normalizeWorkspaceId: normalizeCliWorkspaceId } = require('../lib/cli-mutation-audit-intent');
-const { normalizeWorkspaceId: normalizeVerifyWorkspaceId } = require('../lib/verify-native');
+const { normalizeWorkspaceId: normalizeVerifyWorkspaceId } = require('../lib/workspace-id');
 
 test('workspace normalization is shared across graph, memory, CLI, and verification', () => {
   for (const normalizer of [
