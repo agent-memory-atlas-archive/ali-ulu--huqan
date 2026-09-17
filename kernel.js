@@ -1013,7 +1013,7 @@ class Kernel {
     return this.graph.optimize();
   }
   consolidate(dryRun = true) {
-    return this.graph._consolidateEdges(dryRun);
+    return this.graph.consolidateEdges(dryRun);
   }
 
   /**
