@@ -304,7 +304,7 @@
     },
     "lib/verify.js": {
       "band": "recorded",
-      "lines": 741,
+      "lines": 739,
       "signals": []
     },
     "plugin.js": {
