@@ -80,3 +80,35 @@ test('a proven agent-origin instruction builds its oversight input', () => {
   assert.ok(input.caseId);
   assert.equal(input.action.workspaceId, 'w');
 });
+
+function decisionHarness(stored) {
+  const { createMcpApprovalDecisionHandler } = require('../lib/mcp-approval-decision-handler');
+  const fail = (code, message, extra) => ({ ok: false, error: { code, message }, ...extra });
+  const handle = createMcpApprovalDecisionHandler({ failApprovalDecision: fail });
+  return handle(
+    { learn: () => { throw new Error('must not execute without provenance'); } },
+    { approvalId: 'a1', workspaceId: 'w', decision: 'approved' },
+    {
+      approvalStore: {
+        getToolApprovalById: () => stored,
+        claimToolApproval: () => ({ claimed: true }),
+        rejectToolApproval: () => null,
+        failToolApproval: () => null,
+        finalizeToolApprovalWithReceipt: () => null,
+      },
+    },
+  );
+}
+
+test('an unproven agent-origin instruction never executes, oversight or not', () => {
+  const stored = approvalWithProvenance({ sourceType: 'agent', actor: 'agent:eve' });
+  const result = decisionHarness(stored);
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'AGENT_ORIGIN_PROVENANCE_REQUIRED');
+});
+
+test('a proven agent-origin instruction passes the execution gate', () => {
+  const stored = approvalWithProvenance({ sourceType: 'agent', actor: 'agent:eve', provenanceId: 'prov_x', sourceRef: 'a2a:route:1' });
+  const result = decisionHarness(stored);
+  assert.notEqual(result.error && result.error.code, 'AGENT_ORIGIN_PROVENANCE_REQUIRED');
+});
