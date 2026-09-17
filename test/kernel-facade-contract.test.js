@@ -431,12 +431,17 @@ function createTarballInstall() {
 
   // npm init + install in temp project
   cp.spawnSync('npm', ['init', '-y'], { cwd: INSTALL_DIR, encoding: 'utf8', shell: true, timeout: 15000 });
-  const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', TARBALL_PATH], {
+  // --foreground-scripts + --loglevel=http: a timeout must name the step and
+  // the last registry URL it was waiting on (spawnSync returns captured output
+  // even when it kills the child). This is instrumentation, not a budget
+  // change: the 120s deadline that fired on the Windows/Node 24 runner stays.
+  const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
     cwd: INSTALL_DIR, encoding: 'utf8', timeout: 120000, shell: true,
     env: { ...process.env, NO_COLOR: '1' },
   });
-  if (installResult.error) assert.fail(`npm install error: ${installResult.error.message}`);
-  if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installResult.stderr?.slice(0, 300)}`);
+  const installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
+  if (installResult.error) assert.fail(`npm install error: ${installResult.error.message}\n${installOutput}`);
+  if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installOutput}`);
   assert.ok(fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan')), 'huqan must be installed');
   return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
 }
