@@ -47,8 +47,7 @@
       "lines": 1073,
       "signals": [
         "DIP",
-        "FANOUT:39",
-        "ISP:1"
+        "FANOUT:39"
       ]
     },
     "kernel.v2.js": {

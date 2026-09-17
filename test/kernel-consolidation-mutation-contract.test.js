@@ -99,7 +99,7 @@ test('Kernel consolidate delegates the exact dry-run intent to Graph', () => {
   withKernel(kernel => {
     const expected = { dryRun: false, removed: 1, details: ['delegated'] };
     const calls = [];
-    kernel.graph._consolidateEdges = (...args) => {
+    kernel.graph.consolidateEdges = (...args) => {
       calls.push(args);
       return expected;
     };
