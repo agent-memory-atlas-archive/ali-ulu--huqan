@@ -70,7 +70,6 @@
     "public/js/app.js": 425,
     "sandboxRunner.js": 530,
     "scripts/a2a-conformance/run.js": 688,
-    "scripts/ci-impact-plan.js": 425,
     "scripts/external-conformance/consumer.js": 955,
     "scripts/launch-installed-package-smoke.js": 636,
     "server.js": 1017,
@@ -315,10 +314,6 @@
       "review_by": "2027-03-31"
     },
     "scripts/a2a-conformance/run.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "scripts/ci-impact-plan.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
