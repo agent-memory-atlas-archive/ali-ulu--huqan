@@ -232,7 +232,7 @@ test.describe('#2024 nested secret signal survives the AB5 projection', () => {
   // The receiver-owned internal capability skips AB5 entirely for clean input.
   // A secret must not become a reason to take that shortcut.
   test('receiver-owned internal actions are not exempt from a nested secret', () => {
-    const { createReceiverOwnedInternalActionRequest } = require('../lib/agent-action-firewall');
+    const { createReceiverOwnedInternalActionRequest } = require('../lib/agent-action-step-enforcement');
 
     for (const tool of ['ask', 'learn', 'custom-read']) {
       for (const [label, input] of secretShapes) {

@@ -16,7 +16,7 @@ const { describe, it, before, after } = require('node:test');
 // reviews any tool it does not know. To pin the fallback itself, one test lets a
 // step past the firewall; agent.js reads the export when it loads, so the wrapper
 // goes in before it.
-const firewall = require('../lib/agent-action-firewall');
+const firewall = require('../lib/agent-action-step-enforcement');
 const enforceAgentActionStep = firewall.enforceAgentActionStep;
 let bypassFirewall = false;
 firewall.enforceAgentActionStep = (args) => {
