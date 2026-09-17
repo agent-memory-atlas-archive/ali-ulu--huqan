@@ -58,8 +58,11 @@
             <button aria-pressed="false" data-win="604800000">7d</button>
           </div>
           <button class="btn" id="ov-refresh">&#8635; Refresh</button>
+          <input type="password" id="ib-cap" autocomplete="off" placeholder="operator capability" aria-label="Operator capability for a single integrity check" style="max-width:190px">
+          <button class="btn" id="ib-check">Check integrity</button>
         </div>
       </div>
+      <div class="ibanner" id="ibanner" hidden role="alert"></div>
       <div class="status" id="ov-status" hidden></div>
       <div class="grid" id="ov-grid">
         <article class="panel verdict span-12">

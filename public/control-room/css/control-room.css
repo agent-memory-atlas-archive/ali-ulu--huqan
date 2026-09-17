@@ -216,6 +216,8 @@ td .sub { display: block; color: var(--soft); font-size: 12px; }
 .empty { color: var(--soft); padding: 18px 0; text-align: center; }
 .status { padding: 8px 0; color: var(--soft); font-size: 12.5px; }
 .status.bad { color: var(--block); }
+.ibanner { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--block-wash); border: 1px solid var(--block); font-weight: 600; }
+.ibanner small { display: block; margin-top: 2px; font-weight: 400; color: var(--soft); }
 .roadmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .plan h3 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
 .plan p { margin: 0; color: var(--soft); font-size: 13px; }
