@@ -565,6 +565,8 @@
     "lib/path-safety.js",
     "lib/predicate-parser.js",
     "lib/provenance-ingest.js",
+    "lib/provenance-ingest-adapter.js",
+    "lib/provenance-record-utils.js",
     "lib/provenance-query.js",
     "lib/quickstart-cli.js",
     "lib/quickstart.js",

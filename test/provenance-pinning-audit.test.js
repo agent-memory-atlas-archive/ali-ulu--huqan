@@ -36,6 +36,7 @@ const PROVENANCE_PATHS = [
   'lib/github-connector.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
+  'lib/provenance-ingest-adapter.js',
 ];
 
 /**
@@ -81,6 +82,11 @@ const NOT_PINNED = {
     + 'run. It reads nothing itself: every entry, including its sourceRef, is '
     + 'handed to it by an adapter that already pinned the content, so it has '
     + 'nothing of its own to pin and forwards what it was given.',
+  'lib/provenance-ingest-adapter.js':
+    'is the kernel.learn orchestration over provenance that lib/provenance-ingest.js '
+    + 'already built. It reads no external content itself, so there is nothing of '
+    + 'its own to pin: a caller-supplied contentHash and sourceVersion pass '
+    + 'straight through the builder, which carries the pin. No production caller yet.',
 };
 
 function sourceOf(rel) {

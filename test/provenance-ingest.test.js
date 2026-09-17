@@ -7,7 +7,7 @@ const path = require('node:path');
 const { after, test } = require('node:test');
 
 const Kernel = require('../kernel');
-const { ingestWithProvenance } = require('../lib/provenance-ingest');
+const { ingestWithProvenance } = require('../lib/provenance-ingest-adapter');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-provenance-ingest-'));
 
