@@ -88,6 +88,10 @@
           {
             "context": "Require architecture tracker snapshot to be current",
             "integration_id": 15368
+          },
+          {
+            "context": "Rust accelerator gate",
+            "integration_id": 15368
           }
         ]
       }
