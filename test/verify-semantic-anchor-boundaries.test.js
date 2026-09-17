@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
-const { hasSharedSemanticAnchor, phraseMatches } = require('../lib/verify-native');
+const { hasSharedSemanticAnchor, phraseMatches } = require('../lib/verify-turkish-text');
 
 function makeKernel() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-verify-anchor-'));

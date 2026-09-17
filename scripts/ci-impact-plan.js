@@ -7,143 +7,21 @@ const {
   REPO_ROOT,
   discoverTestFiles,
 } = require('./ci-shard-manifest');
+const {
+  buildDependencyIndex,
+  selectionPlan,
+  assertDerivedTestsSelected,
+} = require('./ci-test-selection');
+const {
+  DOC_ONLY_PATTERNS,
+  FULL_SUITE_PATTERNS,
+  IMPACT_ONLY_PATTERNS,
+  IMPACT_RULES,
+  MUST_HAVE_PATTERNS,
+} = require('./ci-impact-rules');
 
 const PLAN_SCHEMA_VERSION = 1;
 const DEFAULT_AGENT_PLAN = '.huqan/agent-test-plan.json';
-
-const MUST_HAVE_PATTERNS = Object.freeze([
-  'agent.v3.test.js',
-  'agentRuntime.test.js',
-  'capability.test.js',
-  'cli.test.js',
-  'graph.test.js',
-  'kernel.test.js',
-  'kernel.v2.test.js',
-  'mcpServer.test.js',
-  'requestGuards.test.js',
-  'server.test.js',
-  'test/action-risk-classifier.test.js',
-  'test/agent-action-firewall.test.js',
-  'test/approval*.test.js',
-  'test/automation-safety-gate.test.js',
-  'test/ci-*.test.js',
-  'test/classifier-downgrade-fail-closed.test.js',
-  'test/code-change-gate.test.js',
-  'test/command-exec-gate.test.js',
-  'test/connector-action-firewall.test.js',
-  'test/connector-firewall-coverage.contract.test.js',
-  'test/cross-workspace-access-gate.test.js',
-  'test/data-egress-gate.test.js',
-  'test/durable-mutation-journal.test.js',
-  'test/faz2-admission-*.test.js',
-  'test/faz2-*-gate-*.test.js',
-  'test/faz2-*-parity.contract.test.js',
-  'test/faz2-universal-mutation-boundary.contract.test.js',
-  'test/import-cycles.test.js',
-  'test/memory-admission-*.test.js',
-  'test/memory-mutation-gate.test.js',
-  'test/memory-schema*.test.js',
-  'test/memory-store*.test.js',
-  'test/module-reachability*.test.js',
-  'test/mutation-admission*.test.js',
-  'test/mutation-journal*.test.js',
-  'test/operator-token-constant-time.test.js',
-  'test/package-closure.test.js',
-  'test/path-containment-*.test.js',
-  'test/path-safety.test.js',
-  'test/persistence-path-*.test.js',
-  'test/plugin-manifest-integrity.test.js',
-  'test/plugin-hash-portability.test.js',
-  'test/provenance*.test.js',
-  'test/receipt-*.test.js',
-  'test/route-auth-policy.test.js',
-  'test/rustGraph-workspace-isolation.test.js',
-  'test/sandbox-*.test.js',
-  'test/secret-*-gate.test.js',
-  'test/secret-and-sourceref-redaction.test.js',
-  'test/tenancy-boundary.test.js',
-  'test/tool-call-gate*.test.js',
-  'test/tool-policy.test.js',
-  'test/traversal-and-policy-fail-closed.test.js',
-  'test/verify-*.test.js',
-  'test/workflow-action-pinning.test.js',
-  'test/workspace-id.test.js',
-]);
-
-const IMPACT_RULES = Object.freeze([
-  {
-    name: 'graph-kernel-memory',
-    changed: ['graph.js', 'kernel.js', 'kernel.v2.js', 'storage.js', 'rustGraph.js', 'lib/graph-*.js', 'lib/memory-*.js', 'lib/ingest*.js'],
-    tests: ['graph.test.js', 'kernel*.test.js', 'test/graph-*.test.js', 'test/kernel-*.test.js', 'test/memory-*.test.js', 'test/receipt-*.test.js', 'test/provenance*.test.js', 'test/reasonSandbox.test.js'],
-  },
-  {
-    name: 'server-mcp-http',
-    changed: ['server.js', 'mcpServer.js', 'lib/http/**', 'lib/mcp/**', 'lib/a2a/**'],
-    tests: ['server.test.js', 'mcpServer*.test.js', 'test/a2a-*.test.js', 'test/http-*.test.js', 'test/mcp-*.test.js', 'test/route-auth-policy.test.js', 'test/approval*.test.js', 'test/workflow-*.test.js', 'test/v4-ui-*.test.js', 'test/v4-wb*.test.js'],
-  },
-  {
-    name: 'cli',
-    changed: ['cli.js', 'bin/**', 'lib/cli-*.js'],
-    tests: ['cli.test.js', 'test/cli-*.test.js', 'test/quickstart-first-run.test.js'],
-  },
-  {
-    name: 'adapters-connectors',
-    changed: ['adapters/**', 'lib/*adapter*.js', 'lib/external-client-*.js', 'lib/*connector*.js'],
-    tests: ['adapters/*.test.js', 'test/external-client-*.test.js', 'lib/external-client-*.test.js', 'lib/github-connector.test.js', 'test/github-app-server.test.js', 'test/secret-and-sourceref-redaction.test.js'],
-  },
-  {
-    name: 'approval-policy-receipt-provenance',
-    changed: ['lib/*approval*.js', 'lib/*policy*.js', 'lib/*firewall*.js', 'lib/*provenance*.js', 'lib/receipt/**', 'lib/audit-*.js', 'lib/ingest*.js', 'schemas/**'],
-    tests: ['test/approval*.test.js', 'test/*firewall*.test.js', 'test/*policy*.test.js', 'test/provenance*.test.js', 'test/receipt-*.test.js', 'test/audit-*.test.js', 'test/ingest-approval-*.test.js', 'test/ingest-*.test.js', 'test/v4-*-receipt-*.test.js', 'test/v5-*-receipt-*.test.js'],
-  },
-  {
-    name: 'plugins',
-    changed: ['plugin.js', 'plugins/**', 'lib/plugin-*.js'],
-    tests: ['plugin*.test.js', 'plugins/*.test.js', 'test/plugin-*.test.js', 'test/agent-*.test.js'],
-  },
-  {
-    name: 'dream-reasoning-causal',
-    changed: ['dream.js', 'reasonSandbox.js', 'causalSimulator.js', 'finalizer.js', 'lib/causal/**'],
-    tests: ['dream.test.js', 'reasonSandbox.test.js', 'causalSimulator.test.js', 'finalizer*.test.js', 'test/causal-*.test.js', 'test/dream-*.test.js', 'test/reasoning-trace.test.js'],
-  },
-  {
-    name: 'ui-workbench',
-    changed: ['public/**'],
-    tests: ['test/ui-*.test.js', 'test/v4-ui-*.test.js', 'test/v4-wb*.test.js', 'test/workbench-*.test.js', 'test/real-user-smoke-blockers.test.js'],
-  },
-  {
-    name: 'ci-selection',
-    changed: ['.github/workflows/**', 'scripts/ci-*.js', 'scripts/run-test-shard.js', 'scripts/ci-impact-plan.js', 'package.json', 'package-lock.json'],
-    tests: ['test/ci-*.test.js', 'test/package-closure.test.js', 'test/module-reachability*.test.js', 'test/workflow-*.test.js', 'scripts/check-workflow-governance.test.js'],
-  },
-  {
-    name: 'v5-protocol',
-    changed: ['test/v5-*.test.js', 'lib/v5/**', 'schemas/v5/**', 'packages/huqan-verify/**'],
-    tests: ['test/v5-*.test.js', 'test/a2a-*.test.js', 'lib/atp-conformance.test.js', 'packages/axiom-verify/index.test.js'],
-  },
-]);
-
-const IMPACT_ONLY_PATTERNS = Object.freeze([
-  'public/**',
-]);
-
-const FULL_SUITE_PATTERNS = Object.freeze([
-  'package.json',
-  'package-lock.json',
-  '.github/workflows/**',
-  'scripts/ci-*.js',
-  'scripts/ci-impact-plan.js',
-  'scripts/run-test-shard.js',
-  'Dockerfile',
-  'docker-compose.yml',
-]);
-
-const DOC_ONLY_PATTERNS = Object.freeze([
-  'docs/**',
-  'specs/**',
-  'fixtures/**',
-  'benchmarks/fixtures/**',
-]);
 
 function normalizePath(value) {
   return String(value || '').replaceAll('\\', '/').replace(/^\.\//, '');
@@ -281,7 +159,7 @@ function loadAgentPlan({ root = REPO_ROOT, agentPlanPath, knownTests }) {
   }
 }
 
-function buildTestImpactPlan({ root = REPO_ROOT, base, head, changedFiles, mode = 'pr', runtimeOrTest, agentPlanPath } = {}) {
+function buildTestImpactPlan({ root = REPO_ROOT, base, head, changedFiles, mode = 'pr', runtimeOrTest, agentPlanPath, dependencyIndex } = {}) {
   const knownTests = discoverKnownTests(root);
   const changed = (!changedFiles && (mode === 'nightly' || mode === 'release') && (!base || !head))
     ? []
@@ -296,6 +174,7 @@ function buildTestImpactPlan({ root = REPO_ROOT, base, head, changedFiles, mode 
   const deterministic = new Set();
   const reasons = new Map();
   let matchedRuleNames = [];
+  let dependencyDerived = { tests: [], source: 'not-run' };
 
   if (shouldRun) {
     addMatchingTests(deterministic, reasons, knownTests, MUST_HAVE_PATTERNS, 'mandatory safety and contract union');
@@ -309,6 +188,22 @@ function buildTestImpactPlan({ root = REPO_ROOT, base, head, changedFiles, mode 
         matchedRuleNames.push(rule.name);
         addMatchingTests(deterministic, reasons, knownTests, rule.tests, `impact rule: ${rule.name}`);
       }
+    }
+
+    // Dependency-derived selection (#2610). The glob rules above are a
+    // hand-maintained description of the tree, and #2505 C is what happens when
+    // that description drifts: the plan looked healthy and selected none of the
+    // five suites that then failed on main. This layer asks the source directly.
+    // It only ever adds tests, so the union and the rules above remain the floor.
+    const derived = selectionPlan(changed, dependencyIndex || buildDependencyIndex({ root }));
+    dependencyDerived.tests = derived.tests;
+    dependencyDerived.source = 'require graph plus named-file references';
+    for (const [file, why] of derived.reasons) {
+      if (!reasons.has(file)) reasons.set(file, []);
+      for (const reason of why) {
+        if (!reasons.get(file).includes(reason)) reasons.get(file).push(reason);
+      }
+      deterministic.add(file);
     }
   }
 
@@ -331,6 +226,7 @@ function buildTestImpactPlan({ root = REPO_ROOT, base, head, changedFiles, mode 
     selectedTests,
     mandatoryPatterns: [...MUST_HAVE_PATTERNS],
     matchedImpactRules: [...new Set(matchedRuleNames)].sort(),
+    dependencyDerived,
     agent: {
       status: agent.status,
       confidence: agent.confidence,
@@ -366,6 +262,10 @@ function validateImpactPlan(plan, knownTests) {
   for (const file of plan.agent.addedTests) {
     if (!selected.includes(file)) throw new Error(`agent-added test is absent from selectedTests: ${file}`);
   }
+  if (!plan.dependencyDerived || !Array.isArray(plan.dependencyDerived.tests)) {
+    throw new Error('impact plan dependency-derived metadata is invalid');
+  }
+  assertDerivedTestsSelected(plan.dependencyDerived.tests, selected);
   return true;
 }
 

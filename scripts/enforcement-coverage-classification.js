@@ -138,13 +138,16 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'writes the emergency stop records that the identity gate, MCP dispatch, the agent step executor and A2A admission read before acting, and appends the receipt of each stop and lift; gating these writes through admission would be circular. The directory comes from HUQAN_EMERGENCY_STOP_DIR or the state root, never a request field; each record file is named by a hash of its scope and created exclusively, so a stop cannot be overwritten',
   }),
-
   // ── operator tools ─────────────────────────────────────────────────────
   'backupRestore.js': Object.freeze({
     role: 'operator_tool',
     why: 'backup and restore, invoked from the CLI by a human; spawns are the SQLite backup path',
   }),
   'lib/quickstart-cli.js': Object.freeze({ role: 'operator_tool', why: 'the quickstart writes a demo workspace on explicit invocation' }),
+  'lib/integrity-violation-notifier.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the integrity siren reached only from the human-invoked `huqan integrity --notify` command; writes one cursor file beside the ledger (or an operator-named override) recording the last notified seq, and sends nothing itself, so an agent request cannot reach it',
+  }),
   'lib/self-healer/source-dogfood-simulator.js': Object.freeze({
     role: 'operator_tool',
     why: 'writes a simulated source tree for the dogfood run; never reached by an agent request',

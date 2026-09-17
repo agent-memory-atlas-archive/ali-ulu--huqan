@@ -27,8 +27,16 @@ const CARD_INPUT = {
   capabilities: ['file_read', 'shell'],
   delegationChain: ['future-agent-2035'],
   issuedAt: '2026-01-01T00:00:00.000Z',
-  expiresAt: null,
+  // #2505 C: expiry is required and the lifetime is capped at 24h, so cards
+  // carry a real window and every guard evaluation pins `now` inside it.
+  expiresAt: '2026-01-02T00:00:00.000Z',
 };
+
+const NOW = '2026-01-01T12:00:00.000Z';
+
+function atNow(extra = {}) {
+  return { now: () => NOW, ...extra };
+}
 
 function envelopeFor(overrides = {}) {
   return normalizeExternalActionEnvelope({
@@ -132,9 +140,9 @@ test('guard: güvenilir anahtarla imzalı kart signatureVerified: true ve allow'
   const { card } = normalizeAgentIdentityCard(CARD_INPUT);
   const { privateKeyPem, publicKeyPem } = generateIdentityCardKeyPair();
   const envelope = signAgentIdentityCard(card, privateKeyPem);
-  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card, identityCardSignature: envelope }), {
+  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card, identityCardSignature: envelope }), atNow({
     trustedPublicKeys: [publicKeyPem],
-  });
+  }));
   assert.equal(result.identity.signatureVerified, true);
   assert.equal(result.identity.attested, true);
   assert.equal(result.finding.decision, 'allow');
@@ -144,10 +152,10 @@ test('guard: güvenilir anahtarla imzalı kart signatureVerified: true ve allow'
 test('guard: imza zorunlu ve imza yoksa block (missing)', () => {
   const { card } = normalizeAgentIdentityCard(CARD_INPUT);
   const { publicKeyPem } = generateIdentityCardKeyPair();
-  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), {
+  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), atNow({
     trustedPublicKeys: [publicKeyPem],
     requireSignedIdentityCard: true,
-  });
+  }));
   assert.equal(result.finding.decision, 'block');
   assert.equal(result.finding.reason, SIGNATURE_REASONS.MISSING);
   assert.equal(result.identity.signatureVerified, false);
@@ -159,26 +167,41 @@ test('guard: imza zorunlu ve imza geçersizse block (invalid)', () => {
   const result = evaluateAgentIdentity(envelopeFor({
     identityCard: card,
     identityCardSignature: { schemaVersion: IDENTITY_CARD_SIGNATURE_VERSION, algorithm: 'ed25519', signature: Buffer.alloc(64).toString('base64') },
-  }), {
+  }), atNow({
     trustedPublicKeys: [publicKeyPem],
     requireSignedIdentityCard: true,
-  });
+  }));
   assert.equal(result.finding.decision, 'block');
   assert.equal(result.finding.reason, SIGNATURE_REASONS.INVALID);
 });
 
+test('guard: imzasız kart varsayılanda artık block — kartsız attestasyon kabul edilmez', () => {
+  // #2505 C: the default flipped from allow to block. A card that makes no
+  // verifiable claim is no longer an attestation, so the guard refuses it
+  // until the deployment opts out explicitly.
+  const { card } = normalizeAgentIdentityCard(CARD_INPUT);
+  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), atNow({}));
+  assert.equal(result.finding.decision, 'block');
+  assert.equal(result.finding.reason, SIGNATURE_REASONS.MISSING);
+  assert.equal(result.identity.signatureVerified, false);
+  assert.equal(result.identity.attested, true);
+});
+
 test('guard: review zorunluluğu review kararı verir', () => {
   const { card } = normalizeAgentIdentityCard(CARD_INPUT);
-  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), {
+  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), atNow({
     requireSignedIdentityCard: 'review',
-  });
+  }));
   assert.equal(result.finding.decision, 'review');
   assert.equal(result.finding.reason, SIGNATURE_REASONS.MISSING);
 });
 
-test('guard: varsayılan davranış değişmez — imzasız kart yine allow, signatureVerified false', () => {
+test('guard: açık opt-out imzasız kartı yine allow eder, signatureVerified false kalır', () => {
   const { card } = normalizeAgentIdentityCard(CARD_INPUT);
-  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), {});
+  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), atNow({
+    requireIdentityCard: false,
+    requireSignedIdentityCard: false,
+  }));
   assert.equal(result.finding.decision, 'allow');
   assert.equal(result.identity.signatureVerified, false);
   assert.equal(result.identity.attested, true);
@@ -186,13 +209,13 @@ test('guard: varsayılan davranış değişmez — imzasız kart yine allow, sig
 
 test('guard: environment bayrağı zorunluluğu açar', () => {
   const { card } = normalizeAgentIdentityCard(CARD_INPUT);
-  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), {
+  const result = evaluateAgentIdentity(envelopeFor({ identityCard: card }), atNow({
     environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: '1' },
-  });
+  }));
   assert.equal(result.finding.decision, 'block');
-  const review = evaluateAgentIdentity(envelopeFor({ identityCard: card }), {
+  const review = evaluateAgentIdentity(envelopeFor({ identityCard: card }), atNow({
     environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: 'review' },
-  });
+  }));
   assert.equal(review.finding.decision, 'review');
 });
 

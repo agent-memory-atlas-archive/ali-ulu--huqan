@@ -6,7 +6,7 @@ const test = require('node:test');
 const { stripCopula } = require('../lib/turkish-copula');
 const { parsePredicate } = require('../lib/predicate-parser');
 const { normalizeText } = require('../lib/text-utils');
-const { stripCopulaSuffix, foldTurkishAscii } = require('../lib/verify-native');
+const { stripCopulaSuffix, foldTurkishAscii } = require('../lib/verify-turkish-text');
 
 const normalizeWord = (value) => String(value || '').trim().toLowerCase();
 
