@@ -57,7 +57,6 @@ function buildCandidate(root, segments, suffix) {
 describe('property: path containment stays within workspace', () => {
   it('resolvePathWithinRoot fails closed or stays inside root', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-prop-path-'));
-    const canonicalRoot = fs.realpathSync(root);
     try {
       fc.assert(
         fc.property(segmentList, fc.integer({ min: 0, max: 100000 }), (segments, suffix) => {
@@ -73,7 +72,7 @@ describe('property: path containment stays within workspace', () => {
             assert.ok(threw instanceof Error, 'failure must be an Error (fail-closed)');
           } else {
             assert.ok(
-              isPathWithinRoot(canonicalRoot, resolved),
+              isPathWithinRoot(root, resolved),
               `resolved path escapes root: ${resolved}`,
             );
           }
