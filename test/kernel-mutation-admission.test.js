@@ -43,6 +43,7 @@ const {
   admitCandidateIngress,
   admitLearn,
 } = require('../lib/kernel-mutation-admission.js');
+const { routeCandidateClaim } = require('../lib/conflict-detector.js');
 
 const repoRoot = path.join(__dirname, '..');
 const FIXED_CLOCK = () => new Date('2026-08-16T12:00:00.000Z');
@@ -369,7 +370,42 @@ test('candidate ingress: the real seam admits, and kernel.ingestCandidateClaim h
   const kernelSource = fs.readFileSync(path.join(repoRoot, 'kernel.js'), 'utf8');
   assert.equal((kernelSource.match(/routeCandidateClaim\(/g) || []).length, 0,
     'kernel.js must reach routeCandidateClaim only through admitCandidateIngress');
-  assert.match(kernelSource, /admitCandidateIngress\(this, input, opts\)/);
+  assert.match(kernelSource, /admitCandidateIngress\(this, input, opts, null,[\s\S]{0,180}?this\._evaluateLearnAdmission\(/,
+    'kernel.js must inject its admission evaluator at the composition root');
+});
+
+test('candidate ingress: conflict detector does not depend on Kernel private seams (#2166)', () => {
+  const kernel = makeCandidateKernel('conflict-detector-public-boundary');
+  const evaluateLearnAdmission = kernel._evaluateLearnAdmission.bind(kernel);
+  const forbidden = [
+    '_appendAuditEvent',
+    '_backgroundProvenance',
+    '_evaluateLearnAdmission',
+    '_admissionReceiptDetails',
+  ];
+
+  for (const name of forbidden) {
+    kernel[name] = () => {
+      throw new Error(`conflict-detector reached private Kernel seam: ${name}`);
+    };
+  }
+
+  const routed = routeCandidateClaim(kernel, makeClaim(), { workspaceId: 'workspace-a' }, {
+    evaluateLearnAdmission,
+  });
+
+  assert.equal(routed.candidate.status, 'accepted');
+  assert.ok(kernel.graph.getEdge('kedi', 'hayvan', 'IS_A', 'workspace-a'));
+  assert.ok(kernel.graph.getAuditEvents({
+    eventType: AUDIT_EVENTS.CLAIM_ACCEPTED,
+    workspaceId: 'workspace-a',
+  }).length >= 1);
+
+  const source = fs.readFileSync(path.join(repoRoot, 'lib/conflict-detector.js'), 'utf8');
+  for (const name of forbidden) {
+    assert.doesNotMatch(source, new RegExp(`\\.${name}\\s*\\(`),
+      `conflict-detector must not call ${name}`);
+  }
 });
 
 test('candidate family: all three production entry points are routed', () => {

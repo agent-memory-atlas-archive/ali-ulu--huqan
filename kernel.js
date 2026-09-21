@@ -561,12 +561,7 @@ class Kernel {
 
   _admissionReceiptDetails(admission) {
     if (!admission || typeof admission !== 'object') return {};
-    const details = {};
-    if (admission.receiptId) details.receiptId = admission.receiptId;
-    if (admission.receipt && typeof admission.receipt === 'object') {
-      details.receipt = JSON.parse(JSON.stringify(admission.receipt));
-    }
-    return details;
+    return { ...(admission.receiptId ? { receiptId: admission.receiptId } : {}), ...(admission.receipt && typeof admission.receipt === 'object' ? { receipt: JSON.parse(JSON.stringify(admission.receipt)) } : {}) };
   }
 
   // The async form of learn(). It does NOT add locking: the critical
@@ -707,7 +702,8 @@ class Kernel {
   }
 
   ingestCandidateClaim(input = {}, opts = {}) {
-    return admitCandidateIngress(this, input, opts);
+    return admitCandidateIngress(this, input, opts, null, (text, admissionOpts, provenance, workspaceId) =>
+      this._evaluateLearnAdmission(text, admissionOpts, provenance, workspaceId));
   }
 
   // Public/private compatibility facades; implementation lives in lib/predicate-parser.js.
