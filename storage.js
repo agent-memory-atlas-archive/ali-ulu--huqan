@@ -112,11 +112,13 @@ class HuqanStorage {
       throw sqliteUnavailableError('better-sqlite3 is required for v3 storage.', sqliteLoadError);
     }
     this.db = new Database(this.dbPath);
-    // RESUMABLE, and that is a choice rather than a default: this store holds
-    // agent checkpoints, so a lost tail costs repeated work and no evidence.
-    // See lib/sqlite-durability.js for the split and what it was measured at.
-    applySqliteDurability(this.db, 'RESUMABLE');
-    this._init();
+    try {
+      applySqliteDurability(this.db, 'RESUMABLE');
+      this._init();
+    } catch (error) {
+      try { this.db.close(); } catch (_) {}
+      throw error;
+    }
   }
 
   _init() {
@@ -579,8 +581,6 @@ class HuqanStorage {
   countCheckpoints() {
     return Number(this._stmts.countCheckpoints.get()?.c || 0);
   }
-
-
   _hydrateToolApproval(row) {
     return {
       ...row,
