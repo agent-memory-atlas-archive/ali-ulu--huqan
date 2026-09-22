@@ -20,6 +20,26 @@
     }
   }
 
+  function renderEvidenceLadder(root) {
+    const ladder = result && result.evidenceLadder;
+    if (!ladder || !Array.isArray(ladder.levels) || !ladder.current) return;
+    const line = document.createElement('p');
+    line.className = 'evidence-ladder';
+    line.dataset.evidenceLadder = ladder.schemaVersion || '';
+    const evidenceLabels = {
+      external_research: T('webResearch.evidence.external_research', 'External research'),
+      review_candidate: T('webResearch.evidence.review_candidate', 'Review candidate'),
+      canonical_evidence: T('webResearch.evidence.canonical_evidence', 'Canonical evidence'),
+      verified_claim: T('webResearch.evidence.verified_claim', 'Verified claim'),
+    };
+    const labels = ladder.levels.map(level => {
+      const fallback = String(level.id || '').replaceAll('_', ' ');
+      return `${level.id === ladder.current ? '●' : '○'} ${evidenceLabels[level.id] || fallback}`;
+    });
+    line.textContent = `${T('webResearch.evidenceLadder', 'Evidence ladder')}: ${labels.join(' → ')}`;
+    root.append(line);
+  }
+
   function render() {
     if (!result || !selected() || !sameContext()) return;
     const root = $('result');
@@ -27,6 +47,7 @@
     const note = document.createElement('p');
     note.textContent = `${result.provider} — ${T('webResearch.external', 'External sources; not yet verified. Nothing was saved to memory.')}`;
     root.append(note);
+    renderEvidenceLadder(root);
     if (result.summary && result.summary.text) {
       const box = document.createElement('article');
       const head = document.createElement('strong');
