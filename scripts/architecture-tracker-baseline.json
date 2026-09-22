@@ -314,9 +314,9 @@
     },
     "server.js": {
       "band": "decompose",
-      "lines": 1017,
+      "lines": 990,
       "signals": [
-        "FANOUT:52"
+        "FANOUT:51"
       ]
     },
     "storage.js": {
@@ -651,6 +651,7 @@
       "lib/http/v2-status-phases.js": "UI",
       "lib/http/v5-package-import-route.js": "UI",
       "lib/http/v5-preflight-route.js": "UI",
+      "lib/http/viewer-mount.js": "UI",
       "lib/http/workflow-contract-route.js": "UI",
       "lib/http/workflow-data-routes.js": "UI",
       "lib/http/workflow-envelope.js": "UI",
@@ -2351,6 +2352,10 @@
         "lib/v5/runtime-reader.js",
         "lib/v5/structural-signing-helper.js"
       ],
+      "lib/http/viewer-mount.js": [
+        "lib/viewer/session-store.js",
+        "lib/viewer/viewer-gateway.js"
+      ],
       "lib/http/workflow-contract-route.js": [
         "lib/http/workflow-envelope.js",
         "lib/server-response-helpers.js",
@@ -3791,6 +3796,7 @@
         "lib/http/v2-status-phases.js",
         "lib/http/v5-package-import-route.js",
         "lib/http/v5-preflight-route.js",
+        "lib/http/viewer-mount.js",
         "lib/http/workflow-contract-route.js",
         "lib/http/workflow-data-routes.js",
         "lib/ingest.js",
@@ -3804,8 +3810,6 @@
         "lib/shield.js",
         "lib/trust-evidence-ledger.js",
         "lib/verify-status-vocabulary.js",
-        "lib/viewer/session-store.js",
-        "lib/viewer/viewer-gateway.js",
         "lib/workbench/ingest-approval-action.js",
         "lib/workbench/workbench-read-http-router.js",
         "llmAdapter.js",
