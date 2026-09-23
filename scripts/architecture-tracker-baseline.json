@@ -230,7 +230,7 @@
     },
     "lib/provenance-query.js": {
       "band": "recorded",
-      "lines": 608,
+      "lines": 600,
       "signals": []
     },
     "lib/receipt/public-trust-receipt.js": {
