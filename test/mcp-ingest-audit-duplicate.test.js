@@ -325,11 +325,16 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // `--propose` queue and the human review verdict -- producing 29/53.
   // PR #1765 then added one ledgered audit append in
   // lib/external-action-receipt.js (external-action receipt projection),
-  // producing 30/54. The external research pending-candidate surface then
-  // adds one admitted candidate sink, so the current ledger is 30/56.
+  // producing 30/54.
   // This is the opposite of a deletion, which is exactly why this test pins
   // the routed and total numbers and not the difference between them: each
   // shape has its own finding.
-  assert.match(ledger, /assert\.equal\(routed, 30,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 56,/);
+  // #2794 and #2144 landed concurrently, each adding one candidate-family
+  // routed sink: #2794's conflict-candidate review verdict
+  // (lib/conflict-candidate-review.js) and #2144's external research
+  // pending-candidate surface (lib/web-research-candidate-pipeline.js), both
+  // delegating to the same admitted kernel.addCandidateClaim as the
+  // hypothesis review above -- together, 31/57.
+  assert.match(ledger, /assert\.equal\(routed, 31,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 57,/);
 });
