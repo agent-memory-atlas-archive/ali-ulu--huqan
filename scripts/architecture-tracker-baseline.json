@@ -44,7 +44,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 925,
+      "lines": 855,
       "signals": [
         "FANOUT:39"
       ]
@@ -712,6 +712,7 @@
       "lib/kernel-learn-admission.js": "Core",
       "lib/kernel-learn-document.js": "Core",
       "lib/kernel-learn-from-llm.js": "Core",
+      "lib/kernel-learn-transaction.js": "Core",
       "lib/kernel-mutation-admission.js": "Core",
       "lib/kernel-propose-node.js": "Core",
       "lib/kernel-read-use-cases.js": "Core",
@@ -1368,6 +1369,7 @@
         "lib/kernel-learn-admission.js",
         "lib/kernel-learn-document.js",
         "lib/kernel-learn-from-llm.js",
+        "lib/kernel-learn-transaction.js",
         "lib/kernel-mutation-admission.js",
         "lib/kernel-propose-node.js",
         "lib/kernel-read-use-cases.js",
@@ -1375,7 +1377,6 @@
         "lib/kernel-self-learn.js",
         "lib/learn-edge-options.js",
         "lib/learn-use-case.js",
-        "lib/memory-admission-gate.js",
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
         "lib/predicate-parser.js",
@@ -2672,6 +2673,10 @@
         "lib/cli-mutation-audit-intent.js",
         "lib/human-approval-toggle.js",
         "lib/kernel-contract.js"
+      ],
+      "lib/kernel-learn-transaction.js": [
+        "lib/cli-mutation-audit-intent.js",
+        "lib/errors/provenance-error.js"
       ],
       "lib/kernel-mutation-admission.js": [
         "lib/conflict-detector.js",
@@ -4158,12 +4163,6 @@
         "to": "dream.js",
         "fromLayer": "Core",
         "toLayer": "Application"
-      },
-      {
-        "from": "kernel.js",
-        "to": "lib/memory-admission-gate.js",
-        "fromLayer": "Core",
-        "toLayer": "Adapters"
       },
       {
         "from": "kernel.js",

@@ -7,11 +7,11 @@ const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildProvenance } = require('./lib/provenance-ingest');
 const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
-const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
 const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
 const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
+const { runLearnTransaction } = require('./lib/kernel-learn-transaction');
 const { buildLearnEdgeOptions } = require('./lib/learn-edge-options');
 const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
@@ -35,6 +35,25 @@ const RUST_BIN = RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBi
 const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
 function workspaceIdFrom(options) { return normalizeWorkspaceId(options && typeof options === 'object' && !Array.isArray(options) ? options.workspaceId : options); }
+
+// Canonical receipt projection for a committed learn mutation. Kept here
+// (rather than in lib/kernel-learn-transaction.js) because the receipt and
+// verdict modules live in the Application layer while that module is Core:
+// a direct require would be a new Core -> Application layer violation, and
+// the layer contract prefers an injected seam over a new exception. The
+// transaction receives this as buildCanonicalReceipt.
+function buildLearnCanonicalReceipt(receipt, operationId, committedAt) {
+  return buildCanonicalReceiptPayload({
+    ...receipt,
+    metadata: {
+      ...(receipt.metadata || {}),
+      mutationOperationId: operationId,
+      committedAt,
+    },
+  }, {
+    verdict: toCanonicalVerdict('admission', receipt.decision),
+  });
+}
 
 const {
   AXIOM_ERROR,
@@ -515,96 +534,7 @@ class Kernel {
   // callers (CLI, plugins, direct API use) get the same idempotent-replay
   // and crash-safety guarantee, not just MCP-approved learns.
   learn(text, opts = {}) {
-    const { text: nextText, opts: nextOpts } = admitLearn(this, text, opts);
-    this._enterCriticalSection('learn');
-    try {
-      const operationId = typeof nextOpts.mutationOperationId === 'string' && nextOpts.mutationOperationId.trim()
-        ? nextOpts.mutationOperationId.trim()
-        : `auto-mut-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      if (!this.graph || typeof this.graph.runMutationOnce !== 'function') {
-        const error = new Error('durable mutation journal is unavailable');
-        error.code = 'DURABLE_MUTATION_JOURNAL_UNAVAILABLE';
-        throw error;
-      }
-      const postCommitEffects = [];
-      const runMutationOnceOpts = {
-        buildCanonicalReceipt: (learnResult) => {
-          const receipt = learnResult?.data?.admission?.receipt;
-          // Bypass-mode and admission-free learns produce no admission
-          // receipt at all -- that is expected (not every learn goes
-          // through the admission gate), so this mutation simply commits
-          // without a canonical receipt rather than failing the write.
-          if (!receipt || typeof receipt !== 'object') return null;
-          const committedAt = new Date().toISOString();
-          return buildCanonicalReceiptPayload({
-            ...receipt,
-            metadata: {
-              ...(receipt.metadata || {}),
-              mutationOperationId: operationId,
-              committedAt,
-            },
-          }, {
-            verdict: toCanonicalVerdict('admission', receipt.decision),
-          });
-        },
-      };
-      let outcome;
-      try {
-        outcome = this.graph.runMutationOnce(operationId, () => runLearnUseCase(this, nextText, {
-          ...nextOpts,
-          _durableMutationTransaction: true,
-          _postCommitEffects: postCommitEffects,
-        }, {
-          normalizeWorkspaceId,
-          ProvenanceError,
-        }), runMutationOnceOpts);
-      } catch (error) {
-        // A strictProvenance rejection is an expected, final outcome (not a
-        // mid-transaction crash), and learn-use-case.js already appends a
-        // REJECT audit event for it before throwing -- but runMutationOnce's
-        // rollback-on-error restores in-memory state to the pre-mutation
-        // snapshot, which undoes that in-memory audit append along with
-        // everything else (correctly so for a genuine crash, where nothing
-        // should be left behind). Re-append it here so the rejection itself
-        // stays on the audit trail, matching the admission-reject path
-        // (which returns normally instead of throwing and is therefore
-        // unaffected by rollback).
-        if (error instanceof ProvenanceError || error?.code === 'PROVENANCE_REQUIRED') {
-          this._appendAuditEvent({
-            eventType: 'REJECT',
-            targetType: 'learn',
-            targetId: nextText,
-            details: { reason: error.code || 'PROVENANCE_REQUIRED', message: error.message, text: nextText },
-          }, nextOpts.provenance && typeof nextOpts.provenance === 'object' ? nextOpts.provenance : null, normalizeWorkspaceId(nextOpts.workspaceId));
-        }
-        throw error;
-      }
-      const result = outcome.result;
-      if (result && typeof result === 'object') {
-        result.meta = {
-          ...(result.meta || {}),
-          durableMutation: true,
-          replayed: outcome.replayed === true,
-          committedReceiptId: outcome.receipt?.receiptId || null,
-          committedReceiptHash: outcome.receipt?.receiptHash || null,
-        };
-      }
-      if (!outcome.replayed) {
-        // The JSON backend's runMutationOnce already calls save() itself
-        // while committing (outcome.persisted === true); only the SQLite
-        // path still needs this call here, to sync its JSON fallback export
-        // (SQLite's own persistence is the DB transaction, already done).
-        if (!outcome.persisted) {
-          try { this.graph.save(); } catch (error) { console.error('[Kernel] Graph save error:', error.message); }
-        }
-        for (const effect of postCommitEffects) {
-          try { effect(); } catch (error) { console.error('[Kernel] post-commit effect error:', error.message); }
-        }
-      }
-      return result;
-    } finally {
-      this._exitCriticalSection();
-    }
+    return runLearnTransaction({ graph: this.graph, kernel: this, enterCriticalSection: (op) => this._enterCriticalSection(op), exitCriticalSection: () => this._exitCriticalSection(), appendAuditEvent: (...args) => this._appendAuditEvent(...args), admit: (k, t, o) => admitLearn(k, t, o), runUseCase: (k, t, o, d) => runLearnUseCase(k, t, o, d), buildCanonicalReceipt: (receipt, operationId, committedAt) => buildLearnCanonicalReceipt(receipt, operationId, committedAt) }, text, opts);
   }
 
   // r1: Internal learn implementation
