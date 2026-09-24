@@ -46,7 +46,6 @@ Tracked in total: **37**
 | `public/js/app.js` | 425 | — |
 | `lib/storage/tool-approval-methods.js` | 424 | — |
 | `lib/kernel-read-use-cases.js` | 412 | — |
-| `lib/v5/runtime-writer.js` | 411 | — |
 
 ## At or under 400 lines, tracked for a signal (2)
 
