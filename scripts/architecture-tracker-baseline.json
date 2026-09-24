@@ -101,11 +101,6 @@
       "lines": 589,
       "signals": []
     },
-    "lib/external-client-replay-store.js": {
-      "band": "recorded",
-      "lines": 510,
-      "signals": []
-    },
     "lib/external-client-trust-config.js": {
       "band": "recorded",
       "lines": 448,
@@ -496,6 +491,9 @@
       "lib/external-client-mutation-receipt-owner.js": "Core",
       "lib/external-client-package-gate.js": "Core",
       "lib/external-client-production-boundary.js": "Core",
+      "lib/external-client-replay-store-contract.js": "Core",
+      "lib/external-client-replay-store-schema.js": "Core",
+      "lib/external-client-replay-store-snapshot.js": "Core",
       "lib/external-client-replay-store.js": "Core",
       "lib/external-client-trust-config.js": "Core",
       "lib/external-client-trusted-key-snapshot.js": "Core",
@@ -2235,10 +2233,23 @@
         "lib/receipt/canonical-receipt.js",
         "lib/sdk.js"
       ],
-      "lib/external-client-replay-store.js": [
+      "lib/external-client-replay-store-contract.js": [
         "lib/external-client-authority.js",
-        "lib/is-plain-object.js",
         "lib/memory-store-utils.js"
+      ],
+      "lib/external-client-replay-store-schema.js": [
+        "lib/external-client-authority.js",
+        "lib/external-client-replay-store-contract.js"
+      ],
+      "lib/external-client-replay-store-snapshot.js": [
+        "lib/external-client-authority.js",
+        "lib/external-client-replay-store-contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/external-client-replay-store.js": [
+        "lib/external-client-replay-store-contract.js",
+        "lib/external-client-replay-store-schema.js",
+        "lib/external-client-replay-store-snapshot.js"
       ],
       "lib/external-client-trust-config.js": [
         "lib/external-client-authority.js",
@@ -4872,7 +4883,7 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-client-replay-store.js",
+        "from": "lib/external-client-replay-store-contract.js",
         "to": "lib/memory-store-utils.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
