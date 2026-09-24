@@ -39,7 +39,6 @@ Tracked in total: **37**
 | `causalSimulator.js` | 478 | — |
 | `lib/http/workflow-data-routes.js` | 477 | — |
 | `lib/memory-admission-gate.js` | 471 | — |
-| `lib/external-action-receipt-collector.js` | 448 | — |
 | `lib/learn-use-case.js` | 432 | — |
 | `plugins/receipt-exporter.js` | 430 | — |
 | `lib/huqan-package-format.js` | 428 | — |
