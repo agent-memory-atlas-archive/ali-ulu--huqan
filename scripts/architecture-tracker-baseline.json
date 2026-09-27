@@ -302,6 +302,7 @@
       "lib/coder/apply-derivation.js": "Application",
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/experience-reporter.js": "Application",
+      "lib/coder/journal-store.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/collector-seal-config.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
@@ -417,9 +418,11 @@
       "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
+      "lib/external-action-receipt-batch.js": "Core",
       "lib/external-action-receipt-collector-fleet.js": "Core",
       "lib/external-action-receipt-collector-store.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
+      "lib/external-action-receipt-cursor.js": "Core",
       "lib/external-action-receipt-reader.js": "Core",
       "lib/external-action-receipt-shipper.js": "Core",
       "lib/external-action-receipt-writer-factory.js": "Core",
@@ -1116,6 +1119,7 @@
       "scripts/api-snapshot.js": "UI",
       "scripts/architecture-carried-violations.js": "UI",
       "scripts/architecture-dependency-graph.js": "UI",
+      "scripts/architecture-layer-exceptions.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-review-queue.js": "UI",
       "scripts/architecture-snapshot-scope.js": "UI",
@@ -1887,7 +1891,8 @@
       "lib/cli-coder.js": [
         "lib/cli-coder-verify.js",
         "lib/coder/apply-derivation.js",
-        "lib/coder/derivation-record.js"
+        "lib/coder/derivation-record.js",
+        "lib/coder/journal-store.js"
       ],
       "lib/cli-company-ingest.js": [
         "lib/cli-helpers.js"
@@ -2020,7 +2025,13 @@
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/coder/experience-reporter.js": [
+        "lib/experience/adapter-scope.js",
         "lib/experience/contract.js"
+      ],
+      "lib/coder/journal-store.js": [
+        "lib/experience/journal.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js"
       ],
       "lib/coder/verify-derivation.js": [
         "lib/coder/derivation-record.js",
@@ -2404,6 +2415,10 @@
         "lib/external-action-identity-signing.js",
         "lib/human-sponsor-authority.js"
       ],
+      "lib/external-action-receipt-batch.js": [
+        "lib/external-action-identity-log.js",
+        "lib/receipt/signed-receipt-batch.js"
+      ],
       "lib/external-action-receipt-collector-fleet.js": [
         "lib/external-action-identity-log.js",
         "lib/external-action-receipt-collector-store.js"
@@ -2426,8 +2441,9 @@
       ],
       "lib/external-action-receipt-shipper.js": [
         "lib/external-action-identity-log.js",
-        "lib/external-action-receipt.js",
-        "lib/receipt/signed-receipt-batch.js"
+        "lib/external-action-receipt-batch.js",
+        "lib/external-action-receipt-cursor.js",
+        "lib/external-action-receipt.js"
       ],
       "lib/external-action-receipt-writer-factory.js": [
         "graph.js"
@@ -4914,7 +4930,8 @@
         "scripts/api-snapshot-surface.js"
       ],
       "scripts/architecture-dependency-graph.js": [
-        "scripts/architecture-carried-violations.js"
+        "scripts/architecture-carried-violations.js",
+        "scripts/architecture-layer-exceptions.js"
       ],
       "scripts/architecture-mermaid.js": [
         "scripts/check-layers.js"
@@ -5413,6 +5430,12 @@
         "toLayer": "Application"
       },
       {
+        "from": "lib/cli-coder.js",
+        "to": "lib/coder/journal-store.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
         "from": "lib/cli-doctor.js",
         "to": "lib/sqlite-availability.js",
         "fromLayer": "Core",
@@ -5521,6 +5544,12 @@
         "toLayer": "Application"
       },
       {
+        "from": "lib/external-action-receipt-batch.js",
+        "to": "lib/receipt/signed-receipt-batch.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
         "from": "lib/external-action-receipt-collector-store.js",
         "to": "lib/receipt/collector-seal.js",
         "fromLayer": "Core",
@@ -5528,12 +5557,6 @@
       },
       {
         "from": "lib/external-action-receipt-collector-store.js",
-        "to": "lib/receipt/signed-receipt-batch.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/external-action-receipt-shipper.js",
         "to": "lib/receipt/signed-receipt-batch.js",
         "fromLayer": "Core",
         "toLayer": "Application"
