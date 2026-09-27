@@ -3,7 +3,7 @@
   "entries": {
     "agent.v3.js": {
       "band": "recorded",
-      "lines": 647,
+      "lines": 623,
       "signals": [
         "DIP"
       ]
@@ -207,8 +207,10 @@
       "lib/agent-step-executor.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
+      "lib/agent-v3-plan-memory.js": "Core",
       "lib/agent-v3-run-state.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
+      "lib/agent-v3-workspace.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
@@ -299,6 +301,7 @@
       "lib/code-change-path-classification.js": "Core",
       "lib/coder/apply-derivation.js": "Application",
       "lib/coder/derivation-record.js": "Application",
+      "lib/coder/experience-reporter.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/collector-seal-config.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
@@ -307,6 +310,7 @@
       "lib/command-exec-gate.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
+      "lib/company-brain-identity.js": "Core",
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
       "lib/conflict-detector.js": "Core",
@@ -683,6 +687,9 @@
       "lib/mcp-ingest-status-tool.js": "Core",
       "lib/mcp-input-sanitizers.js": "Core",
       "lib/mcp-operator-capability.js": "Core",
+      "lib/mcp-oversight-cases.js": "Core",
+      "lib/mcp-oversight-identity.js": "Core",
+      "lib/mcp-oversight-input.js": "Core",
       "lib/mcp-tool-catalog-core.js": "Core",
       "lib/mcp-tool-catalog-governance.js": "Core",
       "lib/mcp-tool-catalog-ingest.js": "Core",
@@ -813,6 +820,7 @@
       "lib/pr-guardian/index.js": "Application",
       "lib/pr-guardian/policy.js": "Application",
       "lib/pr-guardian/review-receipt.js": "Application",
+      "lib/pr-guardian/review-service-execute.js": "Application",
       "lib/pr-guardian/review-service.js": "Application",
       "lib/pr-guardian/snapshot.js": "Application",
       "lib/pre-ingest.js": "Core",
@@ -1283,8 +1291,10 @@
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
+        "lib/agent-v3-plan-memory.js",
         "lib/agent-v3-run-state.js",
         "lib/agent-v3-storage-factory.js",
+        "lib/agent-v3-workspace.js",
         "lib/goal-binding.js"
       ],
       "agentRuntime.js": [
@@ -2001,11 +2011,16 @@
       "lib/coder/apply-derivation.js": [
         "lib/code-change-gate.js",
         "lib/coder/derivation-record.js",
+        "lib/coder/experience-reporter.js",
         "lib/deterministic-task-runner.js",
+        "lib/experience/contract.js",
         "lib/path-safety.js"
       ],
       "lib/coder/derivation-record.js": [
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/coder/experience-reporter.js": [
+        "lib/experience/contract.js"
       ],
       "lib/coder/verify-derivation.js": [
         "lib/coder/derivation-record.js",
@@ -2034,6 +2049,9 @@
       ],
       "lib/command-policy-editor.js": [
         "lib/external-action-envelope.js"
+      ],
+      "lib/company-brain-identity.js": [
+        "lib/entity-resolution.js"
       ],
       "lib/company-ingest-gate.js": [
         "lib/data-egress-gate.js",
@@ -3361,11 +3379,9 @@
         "lib/risk-scale.js"
       ],
       "lib/mcp-human-oversight-adapter.js": [
-        "lib/agent-action-firewall.js",
-        "lib/agent-identity-runtime.js",
-        "lib/errors/provenance-error.js",
-        "lib/is-plain-object.js",
-        "lib/mcp-approval-admission.js"
+        "lib/mcp-oversight-cases.js",
+        "lib/mcp-oversight-identity.js",
+        "lib/mcp-oversight-input.js"
       ],
       "lib/mcp-ingest-execute-tool.js": [
         "lib/ingest.js",
@@ -3387,6 +3403,20 @@
       ],
       "lib/mcp-operator-capability.js": [
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/mcp-oversight-cases.js": [
+        "lib/mcp-oversight-input.js"
+      ],
+      "lib/mcp-oversight-identity.js": [
+        "lib/agent-identity-runtime.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-oversight-input.js"
+      ],
+      "lib/mcp-oversight-input.js": [
+        "lib/agent-action-firewall.js",
+        "lib/errors/provenance-error.js",
+        "lib/is-plain-object.js",
+        "lib/mcp-approval-admission.js"
       ],
       "lib/mcp-tool-catalog-core.js": [
         "lib/mcp-envelope-schema.js",
@@ -3904,10 +3934,16 @@
         "lib/pr-guardian/review-service.js",
         "lib/pr-guardian/snapshot.js"
       ],
-      "lib/pr-guardian/review-service.js": [
+      "lib/pr-guardian/review-service-execute.js": [
         "lib/mcp-approval-views.js",
         "lib/pr-guardian/policy.js",
         "lib/pr-guardian/review-receipt.js",
+        "lib/pr-guardian/snapshot.js"
+      ],
+      "lib/pr-guardian/review-service.js": [
+        "lib/mcp-approval-views.js",
+        "lib/pr-guardian/policy.js",
+        "lib/pr-guardian/review-service-execute.js",
         "lib/pr-guardian/snapshot.js"
       ],
       "lib/pr-guardian/snapshot.js": [
@@ -4699,6 +4735,7 @@
         "evidence-ranker.js",
         "lib/bounded-ingest-errors.js",
         "lib/causal-edge-strength.js",
+        "lib/company-brain-identity.js",
         "lib/company-ingest-gate.js",
         "lib/entity-resolution.js",
         "llmAdapter.js"
