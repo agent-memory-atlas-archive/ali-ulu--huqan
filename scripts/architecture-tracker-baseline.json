@@ -41,11 +41,6 @@
       "lines": 504,
       "signals": []
     },
-    "lib/external-action-receipt.js": {
-      "band": "recorded",
-      "lines": 589,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
@@ -398,11 +393,13 @@
       "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
+      "lib/external-action-receipt-admission.js": "Core",
       "lib/external-action-receipt-batch.js": "Core",
       "lib/external-action-receipt-collector-fleet.js": "Core",
       "lib/external-action-receipt-collector-store.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
       "lib/external-action-receipt-cursor.js": "Core",
+      "lib/external-action-receipt-outcome.js": "Core",
       "lib/external-action-receipt-reader.js": "Core",
       "lib/external-action-receipt-shipper.js": "Core",
       "lib/external-action-receipt-writer-factory.js": "Core",
@@ -2486,6 +2483,13 @@
         "lib/external-action-identity-signing.js",
         "lib/human-sponsor-authority.js"
       ],
+      "lib/external-action-receipt-admission.js": [
+        "lib/blast-radius.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js"
+      ],
       "lib/external-action-receipt-batch.js": [
         "lib/external-action-identity-log.js",
         "lib/receipt/signed-receipt-batch.js"
@@ -2506,6 +2510,10 @@
         "lib/external-action-receipt-collector-fleet.js",
         "lib/external-action-receipt-collector-store.js"
       ],
+      "lib/external-action-receipt-outcome.js": [
+        "lib/external-action-receipt-admission.js",
+        "lib/file-effect-sensor.js"
+      ],
       "lib/external-action-receipt-reader.js": [
         "lib/external-action-receipt.js",
         "lib/is-plain-object.js"
@@ -2520,14 +2528,10 @@
         "graph.js"
       ],
       "lib/external-action-receipt.js": [
-        "lib/blast-radius.js",
-        "lib/external-action-envelope.js",
-        "lib/external-action-identity.js",
+        "lib/external-action-receipt-admission.js",
+        "lib/external-action-receipt-outcome.js",
         "lib/external-action-receipt-writer-factory.js",
-        "lib/file-effect-sensor.js",
-        "lib/huqan-state-root.js",
-        "lib/receipt/canonical-receipt.js",
-        "lib/verdict/action-verdict.js"
+        "lib/huqan-state-root.js"
       ],
       "lib/external-client-authority.js": [
         "lib/deterministic-json-copy.js",
@@ -5737,6 +5741,18 @@
         "toLayer": "Application"
       },
       {
+        "from": "lib/external-action-receipt-admission.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt-admission.js",
+        "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
         "from": "lib/external-action-receipt-batch.js",
         "to": "lib/receipt/signed-receipt-batch.js",
         "fromLayer": "Core",
@@ -5751,18 +5767,6 @@
       {
         "from": "lib/external-action-receipt-collector-store.js",
         "to": "lib/receipt/signed-receipt-batch.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/external-action-receipt.js",
-        "to": "lib/receipt/canonical-receipt.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/external-action-receipt.js",
-        "to": "lib/verdict/action-verdict.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
