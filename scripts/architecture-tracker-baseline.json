@@ -41,11 +41,6 @@
       "lines": 504,
       "signals": []
     },
-    "lib/conflict-detector.js": {
-      "band": "recorded",
-      "lines": 616,
-      "signals": []
-    },
     "lib/external-action-receipt.js": {
       "band": "recorded",
       "lines": 589,
@@ -292,6 +287,8 @@
       "lib/company-brain-state.js": "Core",
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
+      "lib/conflict-claim.js": "Core",
+      "lib/conflict-detect.js": "Core",
       "lib/conflict-detector.js": "Core",
       "lib/connector-action-firewall-contracts.js": "Core",
       "lib/connector-action-firewall-normalize.js": "Core",
@@ -2122,11 +2119,21 @@
         "lib/audit-log.js",
         "lib/hypothesis-review-audit.js"
       ],
+      "lib/conflict-claim.js": [
+        "lib/is-plain-object.js",
+        "lib/provenance-ingest.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/conflict-detect.js": [
+        "lib/conflict-claim.js",
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
       "lib/conflict-detector.js": [
         "lib/audit-log.js",
         "lib/background-provenance.js",
-        "lib/is-plain-object.js",
-        "lib/provenance-ingest.js",
+        "lib/conflict-claim.js",
+        "lib/conflict-detect.js",
         "lib/receipt/canonical-receipt.js",
         "lib/verdict/action-verdict.js",
         "lib/workspace-id.js"
