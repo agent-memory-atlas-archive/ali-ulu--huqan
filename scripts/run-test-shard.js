@@ -83,13 +83,17 @@ function defaultReportPath(shard) {
 }
 
 /**
- * Where this shard records which files failed, beside its JUnit report.
+ * Where this shard records which files failed and how long each ran, beside
+ * its JUnit report.
  *
- * The merged JUnit report cannot answer that question: it is assembled from
+ * The merged JUnit report cannot answer either question: it is assembled from
  * <testsuite> blocks, and a file declaring only top-level `test(...)` calls
  * emits none, so every result in it -- pass and fail alike -- is dropped. On
  * 2026-09-05 shard 5 exited non-zero on test/enforcement-coverage.test.js and
- * uploaded a report saying failures="0". The nightly alarm reads this sidecar.
+ * uploaded a report saying failures="0". The nightly alarm reads `failedFiles`;
+ * `timings` is read back by scripts/update-shard-weights.js to rebalance the
+ * shards, since the JUnit report names describes, not files, and so cannot say
+ * how long any file took.
  */
 function failuresSidecarPath(reportPath, shard) {
   const stem = path.basename(reportPath, path.extname(reportPath));
@@ -156,6 +160,7 @@ async function run(options) {
 
   const partPaths = [];
   const failedFiles = [];
+  const fileTimings = {};
   let overallStatus = 0;
   let lastSignal = null;
 
@@ -242,6 +247,7 @@ async function run(options) {
       }
       const status = result.status === 0 ? 0 : (result.status || 1);
       const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
+      fileTimings[file] = Number(elapsed);
       console.log(`[shard ${options.shard}/${options.total}] finished ${index + 1}/${selected.files.length}: ${file} -> status ${status} in ${elapsed}s`);
       if (status !== 0) {
         failedFiles.push({ file, status });
@@ -256,7 +262,7 @@ async function run(options) {
     try {
       fs.writeFileSync(
         failuresSidecarPath(reportPath, options.shard),
-        `${JSON.stringify({ shard: options.shard, total: options.total, failedFiles }, null, 2)}\n`,
+        `${JSON.stringify({ shard: options.shard, total: options.total, failedFiles, timings: fileTimings }, null, 2)}\n`,
       );
     } catch (error) {
       console.error(`warning: failed to write the shard failure sidecar: ${error.message}`);
