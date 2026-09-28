@@ -46,11 +46,6 @@
       "lines": 616,
       "signals": []
     },
-    "lib/dream-experiment-loop.js": {
-      "band": "recorded",
-      "lines": 533,
-      "signals": []
-    },
     "lib/external-action-receipt.js": {
       "band": "recorded",
       "lines": 589,
@@ -327,6 +322,8 @@
       "lib/deterministic-json-copy.js": "Core",
       "lib/deterministic-task-runner.js": "Core",
       "lib/dream-embedding.js": "Core",
+      "lib/dream-experiment-loop-hypotheses.js": "Core",
+      "lib/dream-experiment-loop-verify.js": "Core",
       "lib/dream-experiment-loop.js": "Core",
       "lib/dream-graph-paths.js": "Core",
       "lib/dream-hypothesis-finders.js": "Core",
@@ -2188,8 +2185,13 @@
       "lib/dream-embedding.js": [
         "lib/graph-record-utils.js"
       ],
-      "lib/dream-experiment-loop.js": [
+      "lib/dream-experiment-loop-verify.js": [
         "causalSimulator.js",
+        "lib/dream-experiment-loop-hypotheses.js"
+      ],
+      "lib/dream-experiment-loop.js": [
+        "lib/dream-experiment-loop-hypotheses.js",
+        "lib/dream-experiment-loop-verify.js",
         "lib/workspace-id.js"
       ],
       "lib/dream-hypothesis-finders.js": [
