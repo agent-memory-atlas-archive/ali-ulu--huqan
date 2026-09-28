@@ -16,7 +16,6 @@ Tracked in total: **11**
 | `kernel.js` | 495 | FANOUT:37 |
 | `lib/http/workflow-data-routes.js` | 477 | — |
 | `lib/learn-use-case.js` | 432 | — |
-| `lib/huqan-package-format.js` | 428 | — |
 
 ## At or under 400 lines, tracked for a signal (6)
 
