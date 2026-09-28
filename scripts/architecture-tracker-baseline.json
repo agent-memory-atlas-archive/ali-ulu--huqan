@@ -36,11 +36,6 @@
         "DIP"
       ]
     },
-    "lib/learn-use-case.js": {
-      "band": "recorded",
-      "lines": 432,
-      "signals": []
-    },
     "lib/verify-numeric-text.js": {
       "band": "structural",
       "lines": 82,
