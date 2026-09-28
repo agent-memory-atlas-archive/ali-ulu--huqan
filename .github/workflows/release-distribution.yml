@@ -32,10 +32,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout exact published commit
+      # workflow_run is a privileged trigger. Never checkout its head_sha
+      # before proving that SHA is reviewed release source on the default branch.
+      - name: Checkout trusted default branch for release verification
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -49,21 +50,47 @@ jobs:
         run: |
           set -euo pipefail
 
-          version="$(node -p "require('./package.json').version")"
-          tag="v${version}"
           image="ghcr.io/${REPOSITORY,,}"
 
+          # Fetch only trusted release authority first. The workflow_run SHA is
+          # treated as data until it is proven to be a commit on the reviewed
+          # default-branch history.
           git fetch --no-tags origin "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
-          git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
 
-          tag_sha="$(git rev-list -n 1 "refs/tags/${tag}")"
-          if [ "${tag_sha}" != "${SOURCE_SHA}" ]; then
-            echo "::error::Release tag ${tag} resolves to ${tag_sha}, not upstream published commit ${SOURCE_SHA}." >&2
+          if ! printf '%s' "${SOURCE_SHA}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Upstream workflow reported an invalid commit SHA." >&2
+            exit 1
+          fi
+
+          if ! git cat-file -e "${SOURCE_SHA}^{commit}" 2>/dev/null; then
+            echo "::error::Published commit ${SOURCE_SHA} is not present on fetched ${DEFAULT_BRANCH} history." >&2
             exit 1
           fi
 
           if ! git merge-base --is-ancestor "${SOURCE_SHA}" "refs/remotes/origin/${DEFAULT_BRANCH}"; then
             echo "::error::Published commit ${SOURCE_SHA} is not on ${DEFAULT_BRANCH}." >&2
+            exit 1
+          fi
+
+          # Only after the ancestry check may bytes from SOURCE_SHA influence
+          # release metadata. Parse package.json as data; do not execute source
+          # code from the upstream checkout.
+          version="$(git show "${SOURCE_SHA}:package.json" | node -e '
+            let input = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", chunk => { input += chunk; });
+            process.stdin.on("end", () => {
+              const pkg = JSON.parse(input);
+              if (typeof pkg.version !== "string" || pkg.version.length === 0) process.exit(1);
+              process.stdout.write(pkg.version);
+            });
+          ')"
+          tag="v${version}"
+
+          git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
+          tag_sha="$(git rev-list -n 1 "refs/tags/${tag}")"
+          if [ "${tag_sha}" != "${SOURCE_SHA}" ]; then
+            echo "::error::Release tag ${tag} resolves to ${tag_sha}, not upstream published commit ${SOURCE_SHA}." >&2
             exit 1
           fi
 
