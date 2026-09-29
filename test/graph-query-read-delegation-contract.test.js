@@ -22,7 +22,7 @@ function methodBody(source, methodName) {
 }
 
 test('GRAPH: query is a one-line delegate', () => {
-  assert.equal(methodBody(graphSource, 'query'), 'return runGraphQuery(this._nodes, label, workspaceId, this._labelIndex);');
+  assert.equal(methodBody(graphSource, 'query'), 'return runGraphQuery(this._nodes, label, workspaceId, this._labelIndex, options);');
 });
 
 test('GRAPH: query delegate is narrow and cycle-free', () => {
@@ -32,6 +32,7 @@ test('GRAPH: query delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /_db|_stmts|_nodes|_edges|_outIndex|_inIndex/);
   assert.match(delegateSource, /queryLabelKeys/);
   assert.match(delegateSource, /cloneNodeRecord/);
+  assert.match(delegateSource, /function query\(nodes, label, workspaceId = 'default',/);
 });
 
 test('GRAPH: query delegate preserves label/workspace filtering and defensive cloning', () => {
@@ -56,7 +57,6 @@ test('GRAPH: query delegate preserves label/workspace filtering and defensive cl
       workspaceId: 'workspace-a',
     },
   };
-  // The index mirrors the node map's normalized workspace/label buckets.
   const index = createLabelIndex();
   rebuildLabelIndex(index, nodes);
 
@@ -68,4 +68,27 @@ test('GRAPH: query delegate preserves label/workspace filtering and defensive cl
   assert.deepEqual(query(nodes, 'animal', 'default', index), [nodes['default::dog']]);
   assert.deepEqual(query(nodes, 'missing', 'default', index), []);
   assert.deepEqual(query(nodes, 'animal', '', index), [nodes['default::dog']]);
+});
+
+test('GRAPH: query delegate supports bounds/clone options (#3012)', () => {
+  const nodes = {
+    'default::a': { id: 'a', label: 'animal', workspaceId: 'default', tags: ['x'] },
+    'default::b': { id: 'b', label: 'animal', workspaceId: 'default', tags: ['y'] },
+    'default::c': { id: 'c', label: 'animal', workspaceId: 'default', tags: ['z'] },
+  };
+  const index = createLabelIndex();
+  rebuildLabelIndex(index, nodes);
+
+  // limit
+  assert.equal(query(nodes, 'animal', 'default', index, { limit: 2 }).length, 2);
+  // limit + offset
+  assert.deepEqual(query(nodes, 'animal', 'default', index, { limit: 1, offset: 1 }).map(n => n.id), ['b']);
+  // clone:false returns frozen view
+  const frozen = query(nodes, 'animal', 'default', index, { limit: 1, clone: false })[0];
+  assert.equal(Object.isFrozen(frozen), true);
+  assert.throws(() => { frozen.id = 'mutated'; });
+  // default still deep-clones
+  const cloned = query(nodes, 'animal', 'default', index, { limit: 1 })[0];
+  cloned.tags.push('mutated');
+  assert.deepEqual(nodes['default::a'].tags, ['x']);
 });
