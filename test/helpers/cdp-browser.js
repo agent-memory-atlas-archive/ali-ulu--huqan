@@ -18,6 +18,14 @@ const os = require('node:os');
 const path = require('node:path');
 
 const CONNECT_TIMEOUT_MS = 20_000;
+// A launch has to fit inside the shard runner's per-file deadline, so the
+// endpoint wait is generous enough for a loaded runner but still bounded. It
+// used to share the 20s socket-connect value, and a shard on a loaded runner hit
+// it while the browser was still starting (#3240).
+const DEVTOOLS_ENDPOINT_TIMEOUT_MS = 30_000;
+// How often the launch polls for the DevToolsActivePort file and the stderr
+// banner. Small enough to add no visible latency, large enough to stay cheap.
+const ACTIVE_PORT_POLL_MS = 50;
 const COMMAND_TIMEOUT_MS = 20_000;
 // One unanswered /json/list attempt is not evidence that the browser is stuck;
 // the deadline below decides that. This only stops a single attempt from
@@ -236,29 +244,64 @@ function isAlive(pid) {
   }
 }
 
-function waitForDevToolsEndpoint(child) {
+/**
+ * The DevTools port Chrome chose for `--remote-debugging-port=0`.
+ *
+ * Chrome writes `<user-data-dir>/DevToolsActivePort` (port on the first line)
+ * as soon as its DevTools server is up. Reading it is the canonical discovery
+ * -- it does not depend on the stderr wording or on which address family the
+ * server bound to, so a launch that is slow to print, or prints an address the
+ * stderr regex does not match, is still found (#3240).
+ */
+function readActivePort(profileDir) {
+  if (!profileDir) return null;
+  try {
+    const [firstLine] = fs.readFileSync(path.join(profileDir, 'DevToolsActivePort'), 'utf8').split('\n');
+    const port = Number(firstLine.trim());
+    return Number.isInteger(port) && port > 0 ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+function waitForDevToolsEndpoint(child, { timeoutMs = DEVTOOLS_ENDPOINT_TIMEOUT_MS, profileDir } = {}) {
   return new Promise((resolve, reject) => {
     let buffered = '';
+    let settled = false;
+
+    // Both signals are polled, because either can arrive first: the file is the
+    // canonical one, the stderr line stays as a fallback for a browser that
+    // does not write it. The poll is bounded by `timeoutMs`, not by an attempt
+    // count, so an endpoint that never answers cannot park this forever.
+    const poll = setInterval(() => {
+      const port = readActivePort(profileDir);
+      if (port !== null) return finish(null, port);
+      const match = buffered.match(/ws:\/\/(127\.0\.0\.1|localhost):(\d+)\/devtools\/browser\/\S+/);
+      if (match) finish(null, Number(match[2]));
+    }, ACTIVE_PORT_POLL_MS);
+
     const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error(`browser did not report a DevTools endpoint in ${CONNECT_TIMEOUT_MS}ms`));
-    }, CONNECT_TIMEOUT_MS);
+      finish(new Error(`browser did not report a DevTools endpoint in ${timeoutMs}ms`));
+    }, timeoutMs);
 
     function cleanup() {
+      settled = true;
+      clearInterval(poll);
       clearTimeout(timer);
       child.stderr.off('data', onData);
       child.off('exit', onExit);
     }
+    function finish(error, port) {
+      if (settled) return;
+      cleanup();
+      if (error) reject(error);
+      else resolve(port);
+    }
     function onData(chunk) {
       buffered += chunk.toString('utf8');
-      const match = buffered.match(/ws:\/\/(127\.0\.0\.1|localhost):(\d+)\/devtools\/browser\/\S+/);
-      if (!match) return;
-      cleanup();
-      resolve(Number(match[2]));
     }
     function onExit(code) {
-      cleanup();
-      reject(new Error(`browser exited early with code ${code}: ${buffered.slice(-400)}`));
+      finish(new Error(`browser exited early with code ${code}: ${buffered.slice(-400)}`));
     }
 
     child.stderr.on('data', onData);
@@ -330,8 +373,14 @@ function connect(webSocketDebuggerUrl) {
  * The session records uncaught exceptions and console errors so a test can
  * assert on them, which is what makes this browser evidence rather than a
  * source-shape assertion.
+ *
+ * @param {object} [options]
+ * @param {number} [options.devToolsTimeoutMs] how long to wait for the DevTools
+ *   endpoint before giving up; injectable so a test can pin the failure path
+ *   without waiting the full production deadline.
+ * @returns {Promise<object>} the CDP session facade
  */
-async function launchBrowserSession() {
+async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIMEOUT_MS } = {}) {
   const executable = findBrowser();
   if (!executable) throw new Error('no Chromium-family browser found');
 
@@ -357,9 +406,15 @@ async function launchBrowserSession() {
   // launch diagnostics only, so a late write fault has no signal to preserve.
   child.stderr.on('error', () => {});
 
-  const devToolsPort = await waitForDevToolsEndpoint(child);
+  // Both launch awaits have to be inside the try: waitForDevToolsEndpoint
+  // rejects on its own 20s deadline when the browser never announces a DevTools
+  // endpoint, and that is exactly the launch the cleanup below exists for.
+  // Leaving it outside the try left the child and its tree alive, so the file
+  // was killed by the 240s heavy-file deadline with no test output at all
+  // (#3240 -- the remaining leg of #3161).
   let socket;
   try {
+    const devToolsPort = await waitForDevToolsEndpoint(child, { timeoutMs: devToolsTimeoutMs, profileDir });
     socket = await connect(await firstPageTarget(devToolsPort));
   } catch (error) {
     // A launch that fails (no DevTools endpoint, no page target, a refused
@@ -486,6 +541,13 @@ module.exports = {
   browserSmokeSkipReason,
   findBrowser,
   firstPageTarget,
+  // Exported for the launch-failure unit test (#3240): the DevTools-endpoint
+  // wait is the one launch leg that can reject on its own deadline, and a
+  // rejecting launch must still reap the child it spawned. Parameterised so the
+  // deadline can be shortened in a test, and so the DevToolsActivePort file can
+  // be discovered without a real browser.
+  waitForDevToolsEndpoint,
+  readActivePort,
   // Exported for the teardown unit test (#3161). Kept pure/parameterised so the
   // kill-tree logic can be pinned without launching a browser.
   parseProcessTable,
