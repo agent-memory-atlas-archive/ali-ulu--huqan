@@ -281,7 +281,7 @@ async function goldenDigests() {
 }
 // harness:end
 
-// Recorded on main, before the change.
+// Recorded on main; help includes the inference command added by #3038.
 const GOLDEN = {
   'öğret': '7cd3a6016714177b855c45b568de88e5f22dbdf547de62501499e4b6fc219279',
   'verify': '5ac57e2c01ac2c190755def21842481d815185698da92dbe297baa32e905c964',
@@ -326,7 +326,9 @@ const GOLDEN = {
   // help. Diffing the help text against main shows exactly that one added line
   // and nothing else.
   // #3044 adds the `experience-learn` usage line (one line) to the same help.
-  'yardım': '5d964595a48613a28f7301765decb88999fe182a20ca613b86e418269c6b7740',
+  // #3220 re-recorded it for the single added `inference <JSON request>` usage
+  // line; diffing against main shows exactly that one added line and nothing else.
+  'yardım': '207d4abcce09be5b83f8638746da60efcb8fc4f9c57700e473839cc2a0ff229c',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };
