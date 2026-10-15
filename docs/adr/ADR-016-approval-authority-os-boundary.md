@@ -304,6 +304,66 @@ It does not compare receipts with the authority ledger. `huqan audit
 6. **Untrusted summary.** An approval's `summary` is the registering
    runtime's text and is not covered by the action hash. The operator client
    (P5) shows the arguments, which are, and labels the summary as untrusted.
-7. **Rollback.** The ledger has no external anchor, so an elevated rollback
-   is undetectable. TOTP also trusts the system clock, which only an
-   elevated process can change.
+7. **Rollback.** An elevated process can roll the ledger back to an earlier
+   chain that still verifies, and TOTP trusts the system clock, which only an
+   elevated process can change. Since #3940, a rollback past the newest
+   anchor and a ledger entry dated after its anchor are detected (see
+   "Ledger anchors in Rekor"). What happens between the newest anchor and the
+   rollback is detected only once the operator anchors again, so anchoring
+   often narrows the gap. An elevated process can also block the network, and
+   audit then reports the log as unavailable rather than passing.
+
+## Ledger anchors in Rekor (#3940)
+
+The ledger head is anchored in Rekor v1 (`rekor.sigstore.dev`), a public
+append-only log that nobody on this machine can take back:
+
+- **Anchor key.** `createAuthorityState` creates an ECDSA P-256 anchor key
+  beside the decision key. Only the service holds the private half; the pin
+  carries the public half (`anchorKey`). A separate key is needed because
+  Rekor's `hashedrekord` accepts Ed25519 only as Ed25519ph, which Node lacks.
+- **Statement.** `GET /v1/ledger/anchor` signs
+  `{"v":"huqan.authority.anchor.v1","seq":<n>,"hash":"<hex>"}`, in fixed bytes,
+  over the current head (`lib/authority/anchor-statement.js`). The service
+  stays offline: it signs what it holds and sends nothing.
+- **Anchoring.** `huqan-authority anchor` is run by the operator, by hand or
+  scheduled. It checks the statement against the pin, submits a
+  `hashedrekord` entry (the statement's sha256, the signature and the anchor
+  public key) and verifies Rekor's signed entry timestamp. Nothing is
+  published automatically. The log receives only the anchor public key, a
+  digest and its own timestamp.
+- **Detection.** `huqan audit --authority` finds the anchors through Rekor's
+  search index by the anchor key, so it needs no local record an elevated
+  process could delete. Each entry must carry a signed entry timestamp under
+  the Rekor key pinned in `lib/mcp/rekor-anchor-client.js`. That key matched
+  the live log and sigstore's TUF root on 2026-10-15; a pinned key, rather
+  than TLS alone, is what stops a root CA installed by an elevated process.
+  Every anchor read is checked, not only the newest. The anchor key sits in
+  the service's state, which an elevated process can read, so it can anchor
+  a rolled-back head after the fact. The honest anchors made before the
+  rollback still name heads the ledger no longer holds, and an anchor made
+  later for an earlier head than the one before it is the trace of such a
+  forgery: an append-only ledger only ever anchors heads that move forward.
+  Findings (`lib/authority-anchor-detection.js`):
+  - `LEDGER_ROLLED_BACK`: anchored heads the ledger no longer holds.
+  - `ANCHOR_ORDER_REGRESSED`: an anchor made later names an earlier head
+    than an anchor before it.
+  - `LEDGER_CLOCK_SKEW`: an anchored entry is dated more than five minutes
+    after Rekor's `integratedTime`.
+  - `ANCHOR_UNVERIFIED`: a log entry under the anchor key does not verify.
+  - `ANCHOR_SIGNATURE_INVALID`: an anchor's signature does not match the
+    entry it names.
+  - `ANCHOR_UNCHECKED`: the ledger could not be read far enough to find these
+    anchors.
+  - `ANCHOR_SEARCH_TRUNCATED`: more than 500 anchors exist, so not all were
+    read.
+  - `ANCHOR_LOG_UNAVAILABLE`: the log could not be reached, or the pin has no
+    anchor key.
+
+  The checks are bounded. At most 500 anchors are read. Anchors older than
+  the fetched window are looked up by reading the ledger from its start, up
+  to 100,000 entries.
+
+Rekor v2 is not used: it has no search index and no signed entry timestamp,
+and its shard URLs rotate through TUF. The move is revisited when v1 is
+retired.
