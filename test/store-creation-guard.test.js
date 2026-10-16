@@ -227,3 +227,113 @@ test('a recorded store is readable back, once, most recent last', () => {
     ]);
   } finally { box.cleanup(); }
 });
+
+/**
+ * #3976: the temp root and the store path can name the same directory in two
+ * spellings. `os.tmpdir()` is environment-derived and on Windows carries an 8.3
+ * short component (`RUNNER~1`), while the fixture root -- and so the store path
+ * -- is the form `fs.realpathSync.native` returns. A lexical comparison read
+ * the throwaway as a kept store, registered it, and wrote `stores.json` into
+ * the caller's own tree, which the coder gate then saw as untracked dirt.
+ *
+ * A symlinked temp root reproduces the two-spellings-one-directory shape on
+ * every platform, so the regression is pinned without a Windows runner.
+ */
+test('a temp store is a throwaway when the temp root is spelled differently', () => {
+  const box = sandbox();
+  try {
+    const realRoot = path.join(box.root, 'real-temp');
+    const linkedRoot = path.join(box.root, 'linked-temp');
+    fs.mkdirSync(realRoot, { recursive: true });
+    fs.symlinkSync(realRoot, linkedRoot, 'junction');
+    // The store path is the realpath'd form, exactly as the fixture builds it.
+    const store = path.join(realRoot, 'huqan-fixture', 'memory.db');
+
+    // Aliased temp root, long store path: the failing direction. The leaf does
+    // not exist yet, as when the store is about to be created.
+    assert.equal(fs.existsSync(store), false);
+    assert.equal(isEphemeralStorePath(store, linkedRoot), true, `${linkedRoot} vs ${store}`);
+    // A store the operator keeps is still not a throwaway.
+    assert.equal(isEphemeralStorePath(path.join(box.root, 'kept', 'memory.db'), linkedRoot), false);
+  } finally { box.cleanup(); }
+});
+
+test('a temp root that does not exist yet keeps its resolved spelling', () => {
+  const box = sandbox();
+  try {
+    const absent = path.join(box.root, 'not-created');
+    assert.equal(isEphemeralStorePath(path.join(absent, 'memory.db'), absent), true);
+    assert.equal(isEphemeralStorePath(path.join(box.root, 'elsewhere.db'), absent), false);
+  } finally { box.cleanup(); }
+});
+
+test('a store escaping a temporary root through a junction is never ephemeral', () => {
+  const box = sandbox();
+  try {
+    const realRoot = path.join(box.root, 'real-temp');
+    const aliasRoot = path.join(box.root, 'alias-temp');
+    const kept = path.join(box.root, 'kept');
+    fs.mkdirSync(realRoot); fs.mkdirSync(kept);
+    fs.symlinkSync(realRoot, aliasRoot, 'junction');
+    fs.symlinkSync(kept, path.join(realRoot, 'escape'), 'junction');
+    fs.writeFileSync(path.join(kept, 'existing.db'), 'kept');
+    for (const root of [realRoot, aliasRoot]) {
+      for (const spelling of [realRoot, aliasRoot]) {
+        assert.equal(isEphemeralStorePath(path.join(spelling, 'escape', 'existing.db'), root), false);
+        assert.equal(isEphemeralStorePath(path.join(spelling, 'escape', 'new-parent', 'memory.db'), root), false);
+      }
+      assert.equal(isEphemeralStorePath(path.join(realRoot, 'new-parent', 'memory.db'), root), true);
+    }
+  } finally { box.cleanup(); }
+});
+
+test('an unresolved junction cannot grant a temporary-store exemption', () => {
+  const box = sandbox();
+  try {
+    const temporary = path.join(box.root, 'temp'); fs.mkdirSync(temporary);
+    fs.symlinkSync(path.join(box.root, 'missing-target'), path.join(temporary, 'broken'), 'junction');
+    assert.equal(isEphemeralStorePath(path.join(temporary, 'broken', 'memory.db'), temporary), false);
+  } finally { box.cleanup(); }
+});
+
+test('realpath permission failures cannot classify a store as ephemeral', () => {
+  const box = sandbox();
+  const nativeRealpath = fs.realpathSync.native;
+  try {
+    const temporary = path.resolve(box.root);
+    fs.realpathSync.native = value => {
+      if (value === temporary) throw Object.assign(new Error('denied'), { code: 'EACCES' });
+      return nativeRealpath(value);
+    };
+    assert.equal(isEphemeralStorePath(path.join(temporary, 'memory.db'), temporary), false);
+  } finally { fs.realpathSync.native = nativeRealpath; box.cleanup(); }
+});
+
+test('an unreadable missing-tail entry cannot grant an ephemeral exemption', () => {
+  const box = sandbox();
+  const nativeRealpath = fs.realpathSync.native;
+  const nativeLstat = fs.lstatSync;
+  try {
+    const store = path.resolve(box.root, 'memory.db');
+    fs.realpathSync.native = value => {
+      if (value === store) throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+      return nativeRealpath(value);
+    };
+    fs.lstatSync = value => {
+      if (value === store) throw Object.assign(new Error('denied'), { code: 'EACCES' });
+      return nativeLstat(value);
+    };
+    assert.equal(isEphemeralStorePath(store, box.root), false);
+  } finally { fs.realpathSync.native = nativeRealpath; fs.lstatSync = nativeLstat; box.cleanup(); }
+});
+
+test('a filesystem with no resolvable ancestor grants no temporary exemption', () => {
+  const box = sandbox();
+  const nativeRealpath = fs.realpathSync.native;
+  const nativeLstat = fs.lstatSync;
+  try {
+    const missing = () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); };
+    fs.realpathSync.native = missing; fs.lstatSync = missing;
+    assert.equal(isEphemeralStorePath(path.join(box.root, 'memory.db'), box.root), false);
+  } finally { fs.realpathSync.native = nativeRealpath; fs.lstatSync = nativeLstat; box.cleanup(); }
+});
