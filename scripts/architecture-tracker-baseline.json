@@ -775,6 +775,7 @@
       "lib/kernel-v2-native.js": "Core",
       "lib/kernel-v2-type-negation.js": "Core",
       "lib/kernel-v2-verify.js": "Core",
+      "lib/laya-mcp-client.js": "Core",
       "lib/learn-admission-request.js": "Core",
       "lib/learn-edge-options.js": "Core",
       "lib/learn-use-case-negation-conflict.js": "Core",
@@ -2586,7 +2587,8 @@
         "lib/coder/string-synthesis.js",
         "lib/coder/synthesis-memory.js",
         "lib/experience/array-fold-program.js",
-        "lib/experience/expression-adaptation.js"
+        "lib/experience/expression-adaptation.js",
+        "lib/experience/string-program.js"
       ],
       "lib/coder/cli-composition.js": [
         "lib/cli-coder-requirements.js",
@@ -2686,7 +2688,8 @@
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
         "lib/experience/array-fold-program.js",
-        "lib/experience/expression-adaptation.js"
+        "lib/experience/expression-adaptation.js",
+        "lib/experience/string-program.js"
       ],
       "lib/coder/test-execution.js": [
         "lib/command-exec-gate.js"
@@ -3205,7 +3208,8 @@
       ],
       "lib/experience/expression-adaptation.js": [
         "lib/experience/arithmetic-function.js",
-        "lib/experience/array-fold-program.js"
+        "lib/experience/array-fold-program.js",
+        "lib/experience/string-program.js"
       ],
       "lib/experience/journal-connection.js": [
         "lib/memory-store-utils.js",
@@ -6392,6 +6396,9 @@
       ],
       "plugins/experiment-planner.js": [
         "evidence-ranker.js"
+      ],
+      "plugins/laya-risk.js": [
+        "lib/laya-mcp-client.js"
       ],
       "plugins/llm-memory-plugin.js": [
         "llmAdapter.js"
