@@ -238,6 +238,7 @@
       "lib/cli-ingest-preview.js": "Core",
       "lib/cli-knowledge-commands.js": "Core",
       "lib/cli-learn-review.js": "Core",
+      "lib/cli-mcp-service-commands.js": "Core",
       "lib/cli-memory-lifecycle.js": "Core",
       "lib/cli-memory-query.js": "Core",
       "lib/cli-mutation-audit-intent.js": "Core",
@@ -333,6 +334,7 @@
       "lib/command-exec-gate-targets.js": "Core",
       "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
+      "lib/command-parser-mcp-args.js": "Core",
       "lib/command-parser-memory-lifecycle-args.js": "Core",
       "lib/command-parser-memory-query-args.js": "Core",
       "lib/command-parser-review-args.js": "Core",
@@ -840,12 +842,16 @@
       "lib/mcp/agent-presence.js": "UI",
       "lib/mcp/approval-detail-tool.js": "UI",
       "lib/mcp/authority-ledger-provider.js": "UI",
+      "lib/mcp/client-envelope.js": "Core",
+      "lib/mcp/client-registry.js": "Core",
       "lib/mcp/compliance-audit-tool.js": "UI",
+      "lib/mcp/endpoint-pin.js": "Core",
       "lib/mcp/experience-learn-tool.js": "UI",
       "lib/mcp/experience-read-tool.js": "UI",
       "lib/mcp/fractal-learn-tool.js": "UI",
       "lib/mcp/gate-refusal.js": "UI",
       "lib/mcp/json-rpc-handler.js": "UI",
+      "lib/mcp/loopback-service.js": "UI",
       "lib/mcp/memory-query-tool.js": "UI",
       "lib/mcp/operator-authorization.js": "UI",
       "lib/mcp/operator-tool-schemas.js": "UI",
@@ -856,7 +862,10 @@
       "lib/mcp/response-builders.js": "UI",
       "lib/mcp/self-evolve-tool.js": "UI",
       "lib/mcp/server-lifecycle.js": "UI",
+      "lib/mcp/service-acl.js": "Core",
+      "lib/mcp/service-main.js": "UI",
       "lib/mcp/session-protocol.js": "UI",
+      "lib/mcp/stdio-proxy.js": "UI",
       "lib/mcp/stdio-transport.js": "UI",
       "lib/mcp/system-status-tool.js": "UI",
       "lib/mcp/tool-dispatch.js": "UI",
@@ -1617,6 +1626,7 @@
         "plugins/aura-risk.js"
       ],
       "bin/huqan-mcp.js": [
+        "lib/mcp/stdio-proxy.js",
         "mcpServer.js"
       ],
       "bin/huqan-neural-lab.js": [
@@ -2418,6 +2428,7 @@
         "lib/cli-help.js",
         "lib/cli-inference-command.js",
         "lib/cli-knowledge-commands.js",
+        "lib/cli-mcp-service-commands.js",
         "lib/cli-memory-lifecycle.js",
         "lib/cli-memory-query.js",
         "lib/cli-promote.js",
@@ -2500,6 +2511,13 @@
       ],
       "lib/cli-learn-review.js": [
         "lib/cli-helpers.js"
+      ],
+      "lib/cli-mcp-service-commands.js": [
+        "lib/authority/store-migrate.js",
+        "lib/mcp/client-envelope.js",
+        "lib/mcp/client-registry.js",
+        "lib/mcp/endpoint-pin.js",
+        "lib/mcp/service-acl.js"
       ],
       "lib/cli-mutation-audit-intent.js": [
         "lib/is-plain-object.js",
@@ -2932,6 +2950,7 @@
       ],
       "lib/command-parser.js": [
         "lib/cli-workflow-adapter.js",
+        "lib/command-parser-mcp-args.js",
         "lib/command-parser-memory-lifecycle-args.js",
         "lib/command-parser-memory-query-args.js",
         "lib/command-parser-review-args.js",
@@ -4889,6 +4908,9 @@
         "lib/mcp/rekor-anchor-client.js",
         "lib/receipt/receipt-read-index.js"
       ],
+      "lib/mcp/client-envelope.js": [
+        "lib/hash-chain.js"
+      ],
       "lib/mcp/compliance-audit-tool.js": [
         "lib/cli-audit.js",
         "lib/mcp-input-sanitizers.js",
@@ -4922,6 +4944,11 @@
         "lib/mcp/session-protocol.js",
         "lib/mcp/tool-surface-filter-audit.js",
         "lib/mcp/tool-surface.js"
+      ],
+      "lib/mcp/loopback-service.js": [
+        "lib/mcp-envelope-format.js",
+        "lib/mcp/client-envelope.js",
+        "lib/mcp/stdio-transport.js"
       ],
       "lib/mcp/memory-query-tool.js": [
         "lib/mcp/response-builders.js",
@@ -4972,8 +4999,20 @@
         "lib/mcp/response-builders.js",
         "lib/self-evolve-adapter.js"
       ],
+      "lib/mcp/service-main.js": [
+        "lib/mcp-capability-nonce-store.js",
+        "lib/mcp/client-registry.js",
+        "lib/mcp/endpoint-pin.js",
+        "lib/mcp/loopback-service.js",
+        "lib/protected-store-path.js",
+        "mcpServer.js"
+      ],
       "lib/mcp/session-protocol.js": [
         "lib/is-plain-object.js"
+      ],
+      "lib/mcp/stdio-proxy.js": [
+        "lib/mcp/client-envelope.js",
+        "lib/mcp/stdio-transport.js"
       ],
       "lib/mcp/stdio-transport.js": [
         "lib/mcp-envelope-format.js"

@@ -114,16 +114,25 @@ const RULES = [
       'lib/authority/operational-guard.js',
       // #3940: the anchor statement is verified by the Core detection, so it sits here too.
       'lib/authority/anchor-statement.js',
+      // #3999: pure domain helpers; the Core CLI command requires them.
+      'lib/mcp/client-envelope.js', 'lib/mcp/client-registry.js',
+      'lib/mcp/endpoint-pin.js', 'lib/mcp/service-acl.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,
   },
 ];
 
+/** A directory or pattern catch-all; explicit file entries are matched first, in ruleFor. */
 function matchesRule(rule, file) {
-  if (rule.files && rule.files.includes(file)) return true;
   if (rule.dirs && rule.dirs.some((dir) => file.startsWith(dir))) return true;
   return Boolean(rule.pattern && rule.pattern.test(file));
+}
+
+/** The rule that claimed a module; an explicit file entry beats a directory catch-all. */
+function ruleFor(file) {
+  const pinned = RULES.find((rule) => rule.files && rule.files.includes(file));
+  return pinned || RULES.find((rule) => matchesRule(rule, file)) || null;
 }
 
 /**
@@ -131,15 +140,8 @@ function matchesRule(rule, file) {
  * @returns {'UI'|'Application'|'Adapters'|'Core'|null} null when no rule claims it
  */
 function assignLayer(file) {
-  for (const rule of RULES) {
-    if (matchesRule(rule, file)) return rule.layer;
-  }
-  return null;
-}
-
-/** The rule that claimed a module, for the failure message that explains it. */
-function ruleFor(file) {
-  return RULES.find((rule) => matchesRule(rule, file)) || null;
+  const rule = ruleFor(file);
+  return rule ? rule.layer : null;
 }
 
 const isViolation = (fromLayer, toLayer) => RANK[toLayer] < RANK[fromLayer];
