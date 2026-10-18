@@ -4702,6 +4702,14 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
+  "lib/http/agent-registry-routes.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
+  "lib/http/agent-discovery.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
   "lib/http/pr-guardian-auth.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
@@ -4923,6 +4931,10 @@
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
   "lib/mcp/json-rpc-handler.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
+  "lib/mcp/agent-presence.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
