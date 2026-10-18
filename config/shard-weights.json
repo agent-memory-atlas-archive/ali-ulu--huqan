@@ -6,6 +6,7 @@
   },
   "minWeightSeconds": 1,
   "weights": {
+    "test/coder-mixed-target-learning.test.js": 52.0,
     "test/kernel-facade-contract.test.js": 50.965,
     "test/coder-project-method-memory.test.js": 48.431,
     "test/durable-mutation-journal.test.js": 28.02,
