@@ -223,6 +223,8 @@
       "lib/cli-company-ingest.js": "Core",
       "lib/cli-conflicts-command.js": "Core",
       "lib/cli-conflicts.js": "Core",
+      "lib/cli-doctor-probe.js": "Core",
+      "lib/cli-doctor-usage.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-ephemeral-boot.js": "Core",
       "lib/cli-experience-learn.js": "Core",
@@ -2465,9 +2467,14 @@
       "lib/cli-conflicts.js": [
         "lib/conflict-candidate-review.js"
       ],
+      "lib/cli-doctor-usage.js": [
+        "lib/external-action-receipt.js"
+      ],
       "lib/cli-doctor.js": [
         "lib/api-auth-opt-out.js",
         "lib/authority/authority-status.js",
+        "lib/cli-doctor-probe.js",
+        "lib/cli-doctor-usage.js",
         "lib/environment-compat.js",
         "lib/server-bind-doctor.js",
         "lib/sqlite-availability.js",
