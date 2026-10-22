@@ -1558,6 +1558,7 @@
     "lib/experience/string-program.js",
     "lib/coder/string-synthesis.js",
     "lib/evidence-pack/collect.js",
+    "lib/evidence-pack/collector-seals.js",
     "lib/evidence-pack/control-matrix.js",
     "lib/evidence-pack/manifest.js",
     "lib/evidence-pack/signature.js",
