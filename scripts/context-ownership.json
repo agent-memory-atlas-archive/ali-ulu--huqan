@@ -3994,7 +3994,7 @@
   },
   "lib/protected-store-path.js": {
    "context": "Memory",
-   "evidence": "#3998 ADR-018 §2 protected per-workspace store layout and selection"
+   "evidence": "#3998 ADR-018 \u00a72 protected per-workspace store layout and selection"
   },
   "lib/authority/store-migrate.js": {
    "context": "AgentAction",
@@ -4011,6 +4011,14 @@
   "lib/command-parser-mcp-args.js": {
    "context": "AgentAction",
    "evidence": "#3999 CLI parsing for huqan mcp (ADR-018 section 3), same owner as the other command-parser-*-args files"
+  },
+  "lib/evidence-pack/collect.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A2: gathers the Trust receipt bundle, ledger and seals into a pack, the same context as the export it packs"
+  },
+  "lib/evidence-pack/signature.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A4: signs and verifies the pack manifest with the issuer key (lib/receipt/issuer-seal.js), the same Trust context as the seals it reuses"
   }
  },
  "platform": {
@@ -5236,7 +5244,7 @@
   },
   "lib/cli-store-commands.js": {
    "kind": "entry",
-   "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 §2)"
+   "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 \u00a72)"
   },
   "lib/mcp/client-envelope.js": {
    "kind": "entry",
@@ -5269,6 +5277,10 @@
   "lib/cli-mcp-service-commands.js": {
    "kind": "entry",
    "evidence": "#3999 CLI surface for huqan mcp status"
+  },
+  "lib/cli-evidence-commands.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P; #4092 PR-A2: argv dispatch for `evidence pack|verify`, the same entry role as cli-backup-commands"
   }
  },
  "unassigned": {},
@@ -6098,7 +6110,8 @@
    "owner": "AgentAction",
    "consumers": [
     "Observability",
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6374,7 +6387,8 @@
   "lib/data-egress-gate.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Knowledge"
+    "Knowledge",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6958,7 +6972,8 @@
   "backupRestore.js": {
    "owner": "Memory",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -7377,7 +7392,7 @@
    "consumers": [
     "Platform"
    ],
-   "evidence": "#3998 ADR-018 §2: the store CLI composes `huqan store migrate` from this module"
+   "evidence": "#3998 ADR-018 \u00a72: the store CLI composes `huqan store migrate` from this module"
   },
   "lib/protected-store-path.js": {
    "owner": "Memory",
@@ -7385,7 +7400,7 @@
     "AgentAction",
     "Platform"
    ],
-   "evidence": "#3998 ADR-018 §2: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
+   "evidence": "#3998 ADR-018 \u00a72: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
   },
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",
@@ -7839,6 +7854,20 @@
     "AgentAction"
    ],
    "evidence": "cognitive-architecture-plan.md section 7: the artifact observation adapter derives the stable before-observation percept key through the shared M1 contract"
+  },
+  "lib/tool-call-gate-secrets.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#4092 PR-A2: the evidence pack (Trust) reuses this existing function rather than growing a copy"
+  },
+  "lib/emergency-stop-chain.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#4092 PR-A2: the evidence pack (Trust) reuses this existing function rather than growing a copy"
   }
  },
  "legacyEdges": {

@@ -229,6 +229,7 @@
       "lib/cli-doctor-usage.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-ephemeral-boot.js": "Core",
+      "lib/cli-evidence-commands.js": "Core",
       "lib/cli-experience-learn.js": "Core",
       "lib/cli-experience-read.js": "Core",
       "lib/cli-experience-reconcile.js": "Core",
@@ -426,6 +427,7 @@
       "lib/error-taxonomy.js": "Core",
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
+      "lib/evidence-pack/collect.js": "Application",
       "lib/evidence-pack/control-matrix.js": "Application",
       "lib/evidence-pack/manifest.js": "Application",
       "lib/evidence-pack/verify.js": "Application",
@@ -2634,6 +2636,7 @@
       ],
       "lib/cli-workflow-adapter.js": [
         "lib/cli-ephemeral-boot.js",
+        "lib/cli-evidence-commands.js",
         "lib/cli-gate-message.js",
         "lib/cli-ingest-batch.js",
         "lib/cli-ingest-preview.js",
@@ -3325,6 +3328,19 @@
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/evidence-pack/collect.js": [
+        "backupRestore.js",
+        "lib/audit-bounded-read.js",
+        "lib/data-egress-gate.js",
+        "lib/emergency-stop-chain.js",
+        "lib/evidence-pack/manifest.js",
+        "lib/external-action-receipt-reader.js",
+        "lib/receipt/bounded-receipt-export.js",
+        "lib/receipt/receipt-export.js",
+        "lib/secret-scrub-gate.js",
+        "lib/tool-call-gate-secrets.js",
+        "lib/workspace-id.js"
+      ],
       "lib/evidence-pack/control-matrix.js": [
         "lib/evidence-pack/manifest.js"
       ],
@@ -3332,6 +3348,7 @@
         "lib/hash-chain.js"
       ],
       "lib/evidence-pack/verify.js": [
+        "lib/emergency-stop-chain.js",
         "lib/evidence-pack/manifest.js",
         "lib/hash-chain.js",
         "lib/receipt/receipt-export.js"
