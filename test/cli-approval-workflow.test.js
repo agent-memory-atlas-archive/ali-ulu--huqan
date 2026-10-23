@@ -8,7 +8,12 @@ const path = require('node:path');
 const CLI = require('../cli');
 const { callTool } = require('../mcpServer');
 const { runCliArgv } = CLI;
-const { projectApprovalRecord } = require('../lib/mcp-approval-views');
+const {
+  projectApprovalRecord,
+  projectApprovalDecision,
+  formatCliApprovalList,
+  formatCliApprovalDecision,
+} = require('../lib/mcp-approval-views');
 
 // #3560: deciding an approval needs the operator at a terminal typing the
 // approval id back; these tests stand in for that operator.
@@ -65,6 +70,12 @@ test('CLI parses approval queue and explicit approval commands', () => {
     assert.deepEqual(cli.parse('onaylar'), { command: 'onaylar', args: '', workflowId: 'approvals' });
     assert.deepEqual(cli.parse('approvals show approval-123'), {
       command: 'onaylar', args: { approvalId: 'approval-123' }, workflowId: 'approvals',
+    });
+    assert.deepEqual(cli.parse('approvals list'), {
+      command: 'onaylar', args: { workspaceId: 'default' }, workflowId: 'approvals',
+    });
+    assert.deepEqual(cli.parse('approvals list --workspace team-a'), {
+      command: 'onaylar', args: { workspaceId: 'team-a' }, workflowId: 'approvals',
     });
     assert.deepEqual(cli.parse('onayla approval-123 rejected'), {
       command: 'onayla', args: { approvalId: 'approval-123', decision: 'rejected', invalidDecision: false }, workflowId: 'approval-decision',
@@ -127,6 +138,9 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       const listed = await runCliArgv(['onaylar'], { cli, stdout: value => listedOutput.push(value) });
       assert.equal(listed.exitCode, 0);
       assert.match(listedOutput.join('\n'), new RegExp(queued.approval.id));
+      assert.match(listedOutput.join('\n'), /by unknown|by external-agent/);
+      assert.match(listedOutput.join('\n'), /waiting (?:\d+s|\d+m|\d+h|\d+d|age unknown)/);
+      assert.match(listedOutput.join('\n'), /cli approval workflow sentinel hayvandir/);
       // The approval above was queued through the legacy `axiom.learn` spelling and
       // the row persists that string, but the listing is a writer, so per RFC-001 it
       // renders the canonical name. That the legacy row stays *executable* is what
@@ -141,6 +155,11 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       assert.equal(jsonListBody.data.approvals[0].context.source, 'mcp');
       assert.ok(Object.hasOwn(jsonListBody.data.approvals[0], 'provenance'));
       assert.ok(Object.hasOwn(jsonListBody.data.approvals[0], 'policy'));
+
+      const aliasListOutput = [];
+      const aliasList = await runCliArgv(['--json', 'approvals', 'list'], { cli, stdout: value => aliasListOutput.push(value) });
+      assert.equal(aliasList.exitCode, 0);
+      assert.equal(JSON.parse(aliasListOutput[0]).data.approvals[0].id, queued.approval.id);
 
       const detailOutput = [];
       await runCliArgv(['--json', 'approvals', 'show', queued.approval.id], { cli, stdout: value => detailOutput.push(value) });
@@ -243,4 +262,129 @@ test('#3560 deciding an approval without the operator at a terminal is refused a
       closeCli(cli);
     }
   });
+});
+
+test('approval queue text formats every age band and safe requester/claim fallback', () => {
+  const realNow = Date.now;
+  const now = 2_000_000_000_000;
+  Date.now = () => now;
+  try {
+    const output = formatCliApprovalList({
+      pendingCount: 6,
+      approvals: [
+        {
+          id: 'queue-seconds',
+          tool: 'huqan.learn',
+          createdAt: now - 45_000,
+          context: {
+            args: { text: 'claim with\nmultiple words' },
+            provenance: { sourceType: 'agent', actor: 'agent-queue-7' },
+          },
+        },
+        { id: 'queue-minutes', tool: 'huqan.review', createdAt: now - 10 * 60_000, reason: 'needs review' },
+        { id: 'queue-hours', tool: 'huqan.scan', createdAt: now - 2 * 60 * 60_000, reason: 'older review' },
+        { id: 'queue-days', tool: 'huqan.audit', createdAt: now - 3 * 24 * 60 * 60_000 },
+        { id: 'queue-unknown', tool: '', createdAt: 'not-a-timestamp' },
+        { id: 'queue-future', tool: 'huqan.future', createdAt: now + 30_000, reason: 'future timestamp' },
+      ],
+    }, {});
+
+    assert.match(output, /queue-seconds \| huqan\.learn \| by agent-queue-7 \| claim with multiple words \| waiting 45s/);
+    assert.match(output, /queue-minutes \| huqan\.review \| by unknown \| needs review \| waiting 10m/);
+    assert.match(output, /queue-hours \| huqan\.scan \| by unknown \| older review \| waiting 2h/);
+    assert.match(output, /queue-days \| huqan\.audit \| by unknown \| huqan\.audit \| waiting 3d/);
+    assert.match(output, /queue-unknown \|  \| by unknown \| approval request \| waiting age unknown/);
+    assert.match(output, /queue-future \| huqan\.future \| by unknown \| future timestamp \| waiting 0s/);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('decision projection preserves response attestation, falls back to stored evidence, then null', () => {
+  const responseEvidence = { source: 'authority-response' };
+  const storedEvidence = { source: 'approval-context' };
+  const direct = projectApprovalDecision({
+    ok: true,
+    data: {
+      approval: { id: 'approval-direct', context: { decisionAttestation: storedEvidence } },
+      decisionAttestation: responseEvidence,
+    },
+  });
+  assert.deepEqual(direct.data.decisionAttestation, responseEvidence);
+
+  const stored = projectApprovalDecision({
+    ok: true,
+    data: { approval: { id: 'approval-stored', context: { decisionAttestation: storedEvidence } } },
+  });
+  assert.deepEqual(stored.data.decisionAttestation, storedEvidence);
+
+  const absent = projectApprovalDecision({
+    ok: true,
+    data: { approval: { id: 'approval-without-attestation', context: {} } },
+  });
+  assert.equal(absent.data.decisionAttestation, null);
+});
+
+test('approval queue formatter covers empty, detail, and JSON response paths', () => {
+  assert.equal(formatCliApprovalList({ pendingCount: 0, approvals: [] }, {}), 'No pending approvals.');
+  const emptyJson = formatCliApprovalList({ pendingCount: 0, unresolvedCount: 0, approvals: [] }, {}, true);
+  assert.equal(emptyJson.data.pendingCount, 0);
+  assert.equal(emptyJson.data.unresolvedCount, 0);
+  assert.deepEqual(emptyJson.data.approvals, []);
+
+  assert.throws(
+    () => formatCliApprovalList({ approvals: [] }, { approvalId: 'missing-id' }),
+    /Approval not found: missing-id/,
+  );
+  const record = {
+    id: 'queue-detail',
+    tool: 'huqan.learn',
+    createdAt: 1000,
+    context: { args: { text: 'detail claim' } },
+  };
+  const detailJson = formatCliApprovalList({ approvals: [record] }, { approvalId: 'queue-detail' }, true);
+  assert.equal(detailJson.data.approval.id, 'queue-detail');
+  assert.equal(detailJson.data.approval.claim, 'detail claim');
+  const detailText = formatCliApprovalList({ approvals: [record] }, { approvalId: 'queue-detail' });
+  assert.match(detailText, /"id": "queue-detail"/);
+});
+
+test('decision formatter covers JSON, idempotent, rejected, and fallback-id paths', () => {
+  const idempotent = formatCliApprovalDecision({
+    data: { idempotent: true, decision: 'approved', approval: { id: 'already-approved' } },
+  }, 'fallback');
+  assert.equal(idempotent, 'Approval already approved: already-approved.');
+
+  const rejected = formatCliApprovalDecision({
+    data: { decision: 'rejected', approval: { id: 'rejected-id' } },
+  }, 'fallback');
+  assert.equal(rejected, 'Approval rejected: rejected-id.');
+
+  const fallback = formatCliApprovalDecision({ data: {} }, 'fallback-id');
+  assert.equal(fallback, 'Approval applied: fallback-id. The learned fact was written to canonical state.');
+
+  const json = formatCliApprovalDecision({
+    data: { decision: 'approved', approval: { id: 'json-id', context: {} } },
+  }, 'fallback', true);
+  assert.equal(json.data.decision, 'approved');
+  assert.equal(json.data.approval.id, 'json-id');
+});
+
+test('approval age and evidence projection handle zero timestamps and missing records', () => {
+  const realNow = Date.now;
+  Date.now = () => 2_000_000_000_000;
+  try {
+    const output = formatCliApprovalList({
+      approvals: [
+        { id: 'zero-age', tool: 'huqan.learn', createdAt: 0 },
+        { id: 'negative-age', tool: 'huqan.learn', createdAt: -1 },
+      ],
+    }, {});
+    assert.match(output, /zero-age .* waiting age unknown/);
+    assert.match(output, /negative-age .* waiting age unknown/);
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(projectApprovalDecision(null).data.approval, null);
+  assert.equal(projectApprovalDecision({ data: { approval: null, result: null } }).data.decisionAttestation, null);
 });

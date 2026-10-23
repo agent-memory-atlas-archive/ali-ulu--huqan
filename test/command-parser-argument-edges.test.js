@@ -50,6 +50,8 @@ test('approvals list aliases use the same read-only queue command', () => {
   assert.deepEqual(parse('approvals list --workspace w').args, { workspaceId: 'w' });
   assert.deepEqual(parse('approvals listele --workspace w').args, { workspaceId: 'w' });
   assert.deepEqual(parse('onaylar list --workspace w').args, { workspaceId: 'w' });
+  assert.equal(parse('approvals list unexpected-id').command, 'anlamadım');
+  assert.equal(parse('approvals queue --json').command, 'anlamadım');
   assert.deepEqual(parse('approvals --workspace w').args, { workspaceId: 'w' });
   assert.equal(parse('approvals --workspace').command, 'anlamadım');
   assert.equal(parse('approvals list --workspace').command, 'anlamadım');
@@ -78,4 +80,10 @@ test('company ingest arguments default every field that is not given', () => {
   assert.deepEqual(parseCompanyIngestArgs('--kaynak x --author a --url u --path p "t" "r" "body" --tarih d'), {
     source: 'x', author: 'a', repoUrl: 'u', targetPath: 'p', title: 't', rationale: 'r', text: 'body', date: 'd',
   });
+});
+
+test('approvals show keeps an explicit --workspace in the detail args', () => {
+  for (const text of ['approvals show apr_1 --workspace team-a', 'onaylar detay apr_1 --workspace team-a']) {
+    assert.deepEqual(parseCommand(text).args, { approvalId: 'apr_1', workspaceId: 'team-a' }, text);
+  }
 });

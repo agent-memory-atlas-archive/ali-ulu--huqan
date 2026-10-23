@@ -9,24 +9,30 @@ const path = require('node:path');
 const { canonicalActionHash } = require('../lib/mcp-operator-capability');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
-const { createAuthorityService } = require('../lib/authority/authority-service');
+const { createAuthorityService, MAX_ATTEMPTS_PER_MINUTE } = require('../lib/authority/authority-service');
+const { validatePolicy, createOperatorApiKeySalt, createOperatorApiKeyVerifier } = require('../lib/approval-rbac');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
-const { verifyDecision } = require('../lib/authority/decision-envelope');
+const { verifyDecision, verifyOutcomeAttestation, OUTCOME_ATTESTATION_VERSION } = require('../lib/authority/decision-envelope');
+const { stableStringify } = require('../lib/hash-chain');
 const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
 const { MAX_FAILURES } = require('../lib/authority/operator-check');
 
 const START = Date.parse('2026-10-12T12:00:00.000Z');
 
-function harness(t) {
+function harness(t, rbacPolicy) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-authsvc-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const created = createAuthorityState({ dir: path.join(dir, 'state') });
   const clock = { now: START };
   const open = () => createAuthorityService({ ledger: openLedgerStore({ file: path.join(dir, 'ledger.jsonl') }),
-    state: openAuthorityState({ dir: path.join(dir, 'state') }), now: () => clock.now });
+    state: openAuthorityState({ dir: path.join(dir, 'state') }), now: () => clock.now,
+    ...(rbacPolicy ? { rbacPolicy } : {}) });
   const code = (offset = 0) => totpAt(created.totpSecret, Math.floor(clock.now / 1000 / TOTP_STEP_SECONDS) + offset);
-  const seal = (fields) => sealDecisionRequest({ approvalId: 'apr_1', actionHash: ACTION.actionHash, decision: 'approved',
-    reason: 'ok', totp: code(), ...fields }, created.sealingPublicKeyPem);
+  const seal = (fields = {}) => {
+    const request = { approvalId: 'apr_1', actionHash: ACTION.actionHash, decision: 'approved',
+      reason: 'ok', totp: code(), ...fields };
+    return sealDecisionRequest(request, created.sealingPublicKeyPem, { requireTotp: request.totp !== null });
+  };
   return { dir, created, clock, open, code, seal, service: open() };
 }
 
@@ -50,6 +56,138 @@ test('register, decide with a sealed code, and the signed decision verifies for 
   const signing = crypto.createPublicKey(h.created.signingPublicKeyPem);
   assert.equal(verifyDecision(decided.body.envelope, { publicKey: signing, expected, now: h.clock.now }).ok, true);
   assert.deepEqual(h.service.getDecision('apr_1').body.envelope, decided.body.envelope);
+});
+
+test('N-of-M quorum counts authenticated distinct operators and survives restart', (t) => {
+  const aliceKey = `alice-${'a'.repeat(48)}`;
+  const bobKey = `bob-${'b'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver', bob: 'approver' },
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(aliceKey, operatorApiKeySalt),
+      bob: createOperatorApiKeyVerifier(bobKey, operatorApiKeySalt),
+    },
+    quorum: { default: 1, byTool: { 'huqan.learn': 2 } },
+  });
+  assert.equal(rbacPolicy.ok, true, rbacPolicy.reason);
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register(ACTION).status, 201);
+
+  const first = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' });
+  assert.equal(first.status, 202);
+  assert.deepEqual(first.body.quorum, { required: 2, received: 1, approverIds: ['alice'] });
+  assert.deepEqual(h.service.getDecision('apr_1').body.quorum, first.body.quorum);
+
+  const restarted = h.open();
+  const replay = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' });
+  assert.deepEqual([replay.status, replay.body.code], [409, 'DUPLICATE_APPROVER']);
+  assert.equal(restarted.show('apr_1').body.approval.votes.length, 1, 'repeat vote adds no ledger vote');
+
+  const second = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: bobKey, operatorIdHint: 'bob' });
+  assert.equal(second.status, 200);
+  assert.deepEqual(second.body.envelope.payload.approverIds, ['alice', 'bob']);
+  assert.equal(second.body.envelope.payload.quorumRequired, 2);
+  assert.equal(second.body.envelope.payload.operatorId, 'bob');
+  assert.equal(verifyDecision(second.body.envelope, {
+    publicKey: crypto.createPublicKey(h.created.signingPublicKeyPem),
+    expected: { approvalId: 'apr_1', workspaceId: 'default', tool: 'huqan.learn', actionHash: ACTION.actionHash,
+      decision: 'approved', operatorId: 'bob', approverIds: ['alice', 'bob'], quorumRequired: 2 },
+    now: h.clock.now,
+  }).ok, true);
+  assert.equal(restarted.show('apr_1').body.approval.votes.length, 2);
+
+  const consumed = restarted.consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF });
+  assert.equal(consumed.status, 200);
+  const receiptHash = 'c'.repeat(64);
+  const outcome = restarted.recordOutcome('apr_1', {
+    status: 'executed', receiptId: 'execution-receipt-1', receiptHash, consumeProof: PROOF,
+  });
+  assert.equal(outcome.status, 200);
+  const storedEnvelope = restarted.getDecision('apr_1').body.envelope;
+  assert.deepEqual(storedEnvelope, second.body.envelope, 'stored decision is the quorum envelope returned to the approver');
+  const expectedEnvelopeHash = crypto.createHash('sha256')
+    .update(stableStringify(storedEnvelope), 'utf8').digest('hex');
+  assert.equal(outcome.body.attestation.payload.operatorId, 'bob');
+  assert.equal(outcome.body.attestation.payload.decisionEnvelopeHash, expectedEnvelopeHash,
+    'signed execution evidence binds the exact quorum decision envelope');
+  assert.equal(outcome.body.attestation.payload.receiptHash, receiptHash,
+    'receipt hash remains unchanged and is covered by the authority signature');
+  assert.equal(verifyOutcomeAttestation(outcome.body.attestation, {
+    publicKey: crypto.createPublicKey(h.created.signingPublicKeyPem),
+    expected: {
+      approvalId: 'apr_1', workspaceId: 'default', tool: 'huqan.learn', actionHash: ACTION.actionHash,
+      decision: 'approved', operatorId: 'bob', decisionEnvelopeHash: expectedEnvelopeHash,
+      status: 'executed', receiptId: 'execution-receipt-1', receiptHash,
+      recordedAt: outcome.body.attestation.payload.recordedAt,
+      ledgerSeq: outcome.body.outcome.ledgerSeq, ledgerHash: outcome.body.outcome.ledgerHash,
+    },
+  }).ok, true);
+  assert.equal(verifyOutcomeAttestation({
+    ...outcome.body.attestation,
+    payload: { ...outcome.body.attestation.payload, operatorId: 'mallory' },
+  }, { publicKey: crypto.createPublicKey(h.created.signingPublicKeyPem) }).code, 'signature_invalid');
+});
+
+test('a quorum that reached its threshold before a crash is finalized from the durable vote ledger', (t) => {
+  const aliceKey = `alice-${'a'.repeat(48)}`;
+  const bobKey = `bob-${'b'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver', bob: 'approver' },
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(aliceKey, operatorApiKeySalt),
+      bob: createOperatorApiKeyVerifier(bobKey, operatorApiKeySalt),
+    },
+    quorum: { default: 2 },
+  });
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register(ACTION).status, 201);
+  assert.equal(h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' }).status, 202);
+
+  // Simulate a process crash after the second vote was durably appended but
+  // before approval.decided was appended.
+  openLedgerStore({ file: path.join(h.dir, 'ledger.jsonl') }).append('approval.vote', {
+    approvalId: 'apr_1', actionHash: ACTION.actionHash, operatorId: 'bob', decision: 'approved',
+    reason: 'independent review', votedAt: new Date(h.clock.now).toISOString(), quorumRequired: 2,
+  }, new Date(h.clock.now).toISOString());
+
+  const restarted = h.open();
+  const recovered = restarted.decide('apr_1', 'not-used-during-recovery', { apiKey: 'invalid'.padEnd(48, 'x') });
+  assert.equal(recovered.status, 200);
+  assert.equal(recovered.body.recovered, true);
+  assert.deepEqual(recovered.body.envelope.payload.approverIds, ['alice', 'bob']);
+  assert.equal(recovered.body.envelope.payload.operatorId, 'bob');
+  assert.equal(restarted.show('apr_1').body.approval.status, 'approved');
+  assert.equal(restarted.ledgerEntries().body.entries.filter(entry => entry.type === 'approval.decided').length, 1);
+});
+
+test('an invalid operator API key cannot vote or consume a TOTP code', (t) => {
+  const key = `alice-${'a'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver' },
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: { alice: createOperatorApiKeyVerifier(key, operatorApiKeySalt) },
+    quorum: { default: 1 },
+  });
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register(ACTION).status, 201);
+  const before = h.service.show('apr_1').body.approval.votes.length;
+  const totpBefore = openAuthorityState({ dir: path.join(h.dir, 'state') }).readTotp();
+  const refused = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: 'wrong-key'.padEnd(48, 'x'), operatorIdHint: 'alice' });
+  assert.deepEqual([refused.status, refused.body.code], [401, 'APPROVAL_RBAC_API_KEY_INVALID']);
+  assert.equal(h.service.show('apr_1').body.approval.votes.length, before, 'invalid credentials add no vote');
+  assert.deepEqual(openAuthorityState({ dir: path.join(h.dir, 'state') }).readTotp(), totpBefore,
+    'invalid credentials do not consume or advance the shared TOTP state');
 });
 
 test('the authority recomputes the action hash and refuses a registration whose hash lies', (t) => {
@@ -123,15 +261,46 @@ test('an approval is consumed exactly once, only with its hash, and only while t
     'DECISION_EXPIRED');
 });
 
-test('an outcome is recorded only after consumption', (t) => {
+test('an outcome is recorded only after consumption and returns a signed receipt binding', (t) => {
   const h = harness(t);
   h.service.register(ACTION);
   h.service.decide('apr_1', h.seal());
   const outcome = { status: 'executed', receiptId: 'rcpt_1', receiptHash: 'c'.repeat(64), consumeProof: PROOF };
   assert.equal(h.service.recordOutcome('apr_1', outcome).body.code, 'NOT_CONSUMED');
   h.service.consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF });
-  assert.equal(h.service.recordOutcome('apr_1', outcome).status, 200);
-  assert.equal(h.service.recordOutcome('apr_1', outcome).body.code, 'OUTCOME_RECORDED');
+
+  const recorded = h.service.recordOutcome('apr_1', outcome);
+  assert.equal(recorded.status, 200);
+  assert.equal(recorded.body.attestation.payload.receiptId, 'rcpt_1');
+  const decisionEnvelope = h.service.getDecision('apr_1').body.envelope;
+  const decisionEnvelopeHash = crypto.createHash('sha256').update(stableStringify(decisionEnvelope), 'utf8').digest('hex');
+  const verified = verifyOutcomeAttestation(recorded.body.attestation, {
+    publicKey: crypto.createPublicKey(h.created.signingPublicKeyPem),
+    expected: {
+      v: OUTCOME_ATTESTATION_VERSION,
+      approvalId: 'apr_1',
+      workspaceId: 'default',
+      tool: 'huqan.learn',
+      actionHash: ACTION.actionHash,
+      decision: 'approved',
+      operatorId: null,
+      decisionEnvelopeHash,
+      status: 'executed',
+      receiptId: 'rcpt_1',
+      receiptHash: 'c'.repeat(64),
+      recordedAt: recorded.body.attestation.payload.recordedAt,
+      ledgerSeq: recorded.body.outcome.ledgerSeq,
+      ledgerHash: recorded.body.outcome.ledgerHash,
+    },
+  });
+  assert.equal(verified.ok, true, verified.code);
+  const duplicate = h.service.recordOutcome('apr_1', outcome);
+  assert.equal(duplicate.status, 200);
+  assert.equal(duplicate.body.duplicate, true);
+  assert.deepEqual(duplicate.body.attestation, recorded.body.attestation, 'a retry gets the same durable signed outcome');
+  assert.equal(h.service.recordOutcome('apr_1', { ...outcome, receiptId: 'different-receipt' }).body.code, 'OUTCOME_RECORDED');
+  assert.equal(h.service.ledgerEntries().body.entries.filter(entry => entry.type === 'approval.outcome').length, 1,
+    'idempotent recovery does not append twice');
 });
 
 test('registration is bounded: expired, oversized, malformed, or past the rate limit', (t) => {
@@ -246,4 +415,57 @@ test('withdrawal needs the operator code, a pending approval is not withdrawable
   assert.equal(h.service.withdraw('apr_1', h.seal()).body.code, 'SEALED_REQUEST_INVALID', 'a decision request is not a withdrawal');
   assert.equal(h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn', totp: '000000' })).body.code, 'TOTP_INVALID');
   assert.equal(h.service.show('apr_1').body.approval.status, 'approved');
+});
+
+function apiKeyPolicy(extra = {}) {
+  const keys = { alice: `alice-${'a'.repeat(48)}`, bob: `bob-${'b'.repeat(48)}` };
+  const operatorApiKeySalt = createOperatorApiKeySalt();
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver', bob: 'approver' },
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: Object.fromEntries(Object.entries(keys)
+      .map(([id, key]) => [id, createOperatorApiKeyVerifier(key, operatorApiKeySalt)])),
+    quorum: { default: 1 },
+    ...extra,
+  });
+  assert.equal(rbacPolicy.ok, true, rbacPolicy.reason);
+  return { keys, rbacPolicy };
+}
+
+for (const operation of ['decide', 'withdraw']) {
+  test(`a full operator attempt window refuses ${operation} before any scrypt verification`, (t) => {
+    const { keys, rbacPolicy } = apiKeyPolicy();
+    const h = harness(t, rbacPolicy);
+    assert.equal(h.service.register(ACTION).status, 201);
+    if (operation === 'withdraw') {
+      assert.equal(h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.alice, operatorIdHint: 'alice' }).status, 200);
+    }
+    const call = (options, fields) => h.service[operation]('apr_1',
+      h.seal({ totp: null, ...(operation === 'withdraw' ? { decision: 'withdrawn' } : {}), ...fields }), options);
+    // A missing key is denied without scrypt, so the window fills cheaply.
+    for (let i = 0; i < MAX_ATTEMPTS_PER_MINUTE; i += 1) {
+      assert.equal(call({ operatorIdHint: 'alice' }).body.code, 'APPROVAL_RBAC_API_KEY_REQUIRED');
+    }
+    const scrypt = t.mock.method(crypto, 'scryptSync');
+    const limited = call({ apiKey: `alice-${'z'.repeat(48)}`, operatorIdHint: 'alice' });
+    assert.deepEqual([limited.status, limited.body.code], [429, 'RATE_LIMITED']);
+    assert.equal(scrypt.mock.callCount(), 0, 'no scrypt work while the window is full');
+    h.clock.now += 61 * 1000;
+    assert.equal(call({ apiKey: `alice-${'z'.repeat(48)}`, operatorIdHint: 'alice' }).body.code, 'APPROVAL_RBAC_API_KEY_INVALID');
+    assert.equal(scrypt.mock.callCount(), 1, 'verification resumes once the window clears');
+  });
+}
+
+test('under separation of duties the requester cannot cast an early quorum vote', (t) => {
+  const { keys, rbacPolicy } = apiKeyPolicy({ separationOfDuties: true, quorum: { default: 2 } });
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register({ ...ACTION, requesterId: 'alice' }).status, 201);
+  const early = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.alice, operatorIdHint: 'alice' });
+  assert.deepEqual([early.status, early.body.code], [403, 'APPROVAL_RBAC_SEPARATION_OF_DUTIES']);
+  assert.equal(h.service.show('apr_1').body.approval.votes.length, 0, 'the requester vote is not recorded');
+  const other = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.bob, operatorIdHint: 'bob' });
+  assert.deepEqual([other.status, other.body.quorum.received], [202, 1], 'requester plus one other never reaches quorum');
+  assert.equal(h.service.show('apr_1').body.approval.status, 'pending');
 });

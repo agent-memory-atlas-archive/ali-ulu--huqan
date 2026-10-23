@@ -13,6 +13,10 @@ const { test } = require('node:test');
 const {
   authorizeApproval,
   loadApprovalRbacPolicy,
+  quorumRequiredFor,
+  resolveApprovalOperator,
+  createOperatorApiKeySalt,
+  createOperatorApiKeyVerifier,
   validatePolicy,
 } = require('../lib/approval-rbac');
 
@@ -108,6 +112,49 @@ test('a decision is allowed only for a known role that grants approvals.decide',
   const denied = authorizeApproval({ policy, operatorId: 'bob' });
   assert.equal(denied.code, 'APPROVAL_RBAC_PERMISSION_DENIED');
   assert.equal(denied.role, 'viewer');
+});
+
+test('quorum policy requires distinct configured approvers and authenticates API keys', () => {
+  const aliceKey = 'alice-api-key-'.padEnd(48, 'a');
+  const bobKey = 'bob-api-key-'.padEnd(48, 'b');
+  const salt = createOperatorApiKeySalt();
+  const policy = loaded({
+    operators: { alice: 'approver', bob: 'approver' },
+    operatorApiKeySalt: salt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(aliceKey, salt),
+      bob: createOperatorApiKeyVerifier(bobKey, salt),
+    },
+    quorum: { default: 1, byTool: { 'huqan.learn': 2 } },
+  });
+  assert.equal(quorumRequiredFor(policy, 'huqan.learn'), 2);
+  assert.equal(quorumRequiredFor(policy, 'huqan.ingest'), 1);
+  assert.equal(resolveApprovalOperator({ policy, apiKey: aliceKey, operatorIdHint: 'alice' }).operatorId, 'alice');
+  assert.equal(resolveApprovalOperator({ policy, apiKey: bobKey, operatorIdHint: 'bob' }).operatorId, 'bob');
+  assert.equal(resolveApprovalOperator({ policy, apiKey: aliceKey, operatorIdHint: 'bob' }).code, 'APPROVAL_RBAC_API_KEY_INVALID');
+  assert.equal(resolveApprovalOperator({ policy, apiKey: 'unknown-key'.padEnd(48, 'x'), operatorIdHint: 'alice' }).code, 'APPROVAL_RBAC_API_KEY_INVALID');
+  assert.equal(resolveApprovalOperator({ policy, apiKey: aliceKey }).code, 'APPROVAL_RBAC_OPERATOR_REQUIRED');
+  assert.equal(resolveApprovalOperator({ policy }).code, 'APPROVAL_RBAC_API_KEY_REQUIRED');
+});
+
+test('quorum validation refuses thresholds without enough distinct authorized API keys', () => {
+  const aliceKey = 'alice-api-key-'.padEnd(48, 'a');
+  const salt = createOperatorApiKeySalt();
+  const verifier = createOperatorApiKeyVerifier(aliceKey, salt);
+  for (const overrides of [
+    { quorum: { default: 2 } },
+    { operators: { alice: 'approver', bob: 'approver' }, operatorApiKeySalt: salt,
+      operatorApiKeyVerifiers: { alice: verifier }, quorum: { default: 2 } },
+    { operatorApiKeyVerifiers: { bob: verifier } },
+    { operatorApiKeySalt: salt, operatorApiKeyVerifiers: { alice: 'not-a-verifier' } },
+    { operatorApiKeySalt: salt, operatorApiKeyVerifiers: { bob: verifier }, quorum: { default: 1 } },
+    { operators: { alice: 'approver', bob: 'approver' }, operatorApiKeySalt: salt,
+      operatorApiKeyVerifiers: { alice: verifier, bob: verifier }, quorum: { default: 2 } },
+    { quorum: { default: 1.5 } },
+  ]) {
+    const result = validatePolicy({ ...POLICY, ...overrides });
+    assert.equal(result.ok, false, JSON.stringify(overrides));
+  }
 });
 
 test('separation of duties is off by default and compares requester to approver when on', () => {
