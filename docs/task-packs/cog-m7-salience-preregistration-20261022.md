@@ -2,7 +2,58 @@
 
 Durum: **DRAFT / NOT_MEASURED — henüz kilitlenmiş ön-kayıt değildir.**
 İlgili iş: #4065; plan: `docs/cognitive-architecture-plan.md`, §5 ve §7.
-Bu belge yalnız deney sözleşmesini tanımlar; evaluator veya üretim davranışı eklemez.
+Bu belge deney sözleşmesini tanımlar; aşağıdaki kontrollü pilot üretim davranışını değiştirmez.
+
+## Kontrollü pilot sınırı
+
+Pilot giriş noktası `node lib/cognitive-lab-m7-experiment.js` komutudur;
+`repair`, `denied` ve `rollback` senaryoları ayrı çalıştırılır. İki kol ayrı
+child process, çalışma alanı, Git deposu ve journal ile başlar. Gerçek onay
+rezervasyonu, AgentV3 Coder yürütmesi, bağımsız test ve geri alma yolu kullanılır.
+Kontrol kolu yalnız mevcut scheduler çağrısındaki urgency değerlerini sıfırlar;
+gözlem, puanlama, öğrenme ve güvenlik kapıları çalışmaya devam eder.
+
+Onarım senaryosu, native Coder planındaki tek adımı koruyup güvenli bir `ask`
+işiyle yarıştıran **Lab sabit-plan fixture'ıdır**. Bir iterasyon bütçesiyle bu
+kurulumun etkisi karakterize edilir. Native tek-adımlı üretim planının sıralama
+kazanımı veya genel görev başarısı hakkında çıkarım yapılmaz. Ret ve geri alma
+senaryoları native tek-adımlı planla güvenlik sözleşmesini sınar.
+
+Kabul oracle'ı sentez örnekleri ve Coder kabul testindeki girdilerden ayrı
+girdilerde gerçek fonksiyon çıktısını sınar. Fresh-process kontrolü, mevcut
+journal'dan prediction/outcome çiftlerini ve türetilmiş değeri yeniden okur.
+Model ve ağ çağrıları child içinde engellenir; engelin çalışması ayrıca sınanır.
+Rapor her durumda `PILOT_ONLY` ve `assertsGain: false` taşır.
+
+Duvar süresi kolun kurulumunu, yürütmesini, oracle'ını ve yeniden açılışını
+kapsar; dış orchestrator'ın başlatma/temizlik süresi bu sayıya dahil değildir.
+Bellek değeri arm Node süreci ile yeniden açılış Node sürecinin gözlenen tepe
+değeridir; Git, bağımsız oracle ve Coder test alt süreçlerinin belleği ölçülmez.
+Bu ölçü tüm süreç ağacının toplam/ eşzamanlı tepe belleği olarak sunulmaz.
+Pilot testlerinin geçmesi aşağıdaki holdout kilitlerini kapatmaz.
+
+### Gözlenen tek pilot koşusu
+
+2026-10-23, Windows, kaynak `d6615ce606ee243c034edc09c2d98416eac53880`;
+`runM7Pilot()` varsayılan `repair` senaryosu. Bu tek elle kurulmuş görevdir;
+bağımsız grup örneklemi, holdout veya istatistiksel kazanım değildir.
+
+| Ölçü | Kontrol | M7 |
+| --- | --- | --- |
+| Ayrı girdilerde gerçek kabul testi | Başarısız | Geçti |
+| Kaynak değişti | Hayır | Evet |
+| Executor girişi | 1 | 1 |
+| Coder kabul testi çağrısı | 0 | 1 |
+| Bağımsız oracle çağrısı | 1 | 1 |
+| Model / ağ girişimi | 0 / 0 | 0 / 0 |
+| Journal çifti / türetilmiş değer girdisi | 0 / 0 | 1 / 1 |
+| Kol duvar süresi | 1508 ms | 3304 ms |
+| Sınırlı süreç kapsamındaki tepe RSS | 66,265,088 bayt | 87,199,744 bayt |
+
+Süre ve RSS yalnız bu çalıştırmanın gözlemidir; tekrarlı performans kazancı
+iddiası değildir. Yukarıdaki alt süreç belleği ve orchestrator maliyeti sınırları
+geçerlidir. Sonuç etiketi **PILOT_ONLY**, `assertsGain: false`; nihai Lab sonucu
+**NOT_MEASURED** olarak kalır.
 
 ## Kaynak sınırı
 
@@ -25,8 +76,9 @@ doğrulanan görev başarı oranını artırır; eski becerilerde kabul edilen k
   yazıları diğerine veya sonraki holdout görevine taşınmaz.
 
 `salience:false` veya cognition'ı tümden kapatmak geçerli kontrol değildir:
-mevcut seam gözlemi de kapatır. Yalnız urgency katkısını ayıran Lab yolu henüz
-doğrulanmadı; eşitlik testi yapılmadan karşılaştırma başlatılmaz.
+mevcut seam gözlemi de kapatır. Pilot testi, scheduler girdilerinin yalnız urgency
+bakımından değiştiğini sınar; ayrı kol kimlikleri ve bunlardan türetilen scope
+hash'leri açıkça normalize edilir. Bu kontrol nihai holdout sözleşmesinin yerini almaz.
 
 ## Görev ve başarı sözleşmesi
 
@@ -86,7 +138,7 @@ başlatılmaz ve bu belge tamamlanmış ön-kayıt olarak sunulmaz:
 | Kilit | Mevcut durum |
 | --- | --- |
 | Aday ve kontrolün değişmez kaynak SHA'ları | Açık |
-| Yalnız urgency farkını kanıtlayan kontrol testi | Açık |
+| Yalnız urgency farkını kanıtlayan kontrol testi | Pilot testi mevcut; nihai evaluator kilidi açık |
 | Gerçek görev corpus'u, kaynak grupları ve içerik digest'leri | Açık |
 | Train/calibration/holdout grup listeleri ve sızıntı denetimi | Açık |
 | Holdout'ta donmuş politika veya yalnız görev içi geçmişten çevrimiçi uyarlama seçimi | Açık |
