@@ -7,6 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -78,6 +79,75 @@ test('#2128: mount delegates gateway paths and reset', async () => {
   assert.equal(mount.checkRateLimit(req, 1), false);
   mount.reset();
   assert.equal(mount.checkRateLimit(req, 2), true);
+});
+
+test('#4214: mount recognises SAML paths and routes them ahead of the gateway', async () => {
+  // Unconfigured SAML is a no-op router: the mount stays a pure viewer mount,
+  // and a SAML-shaped path is not admitted.
+  const bare = createViewerMount({ readReceipt: () => null });
+  assert.equal(bare.isViewerPath('/saml/login'), false);
+  assert.equal(bare.isViewerPath('/viewer/index.html'), true);
+
+  // With an IdP metadata file in the environment the SAML route is live, so the
+  // mount admits its paths and answers them before the gateway.
+  // Under the real temp path: a hardcoded /tmp is not a valid directory on
+  // Windows, so the fixture is created under os.tmpdir() like the other tests.
+  const metadataDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-viewer-saml-'));
+  const { publicKey } = require('node:crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
+  fs.writeFileSync(path.join(metadataDir, 'metadata.json'), JSON.stringify({
+    entityID: 'https://idp.example.test',
+    singleSignOnService: [{ binding: 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect', location: 'https://idp.example.test/sso' }],
+    x509Cert: [publicKey.export({ type: 'spki', format: 'pem' })],
+  }));
+  const prev = {};
+  const env = {
+    HUQAN_SAML_IDP_METADATA_PATH: path.join(metadataDir, 'metadata.json'),
+    HUQAN_SAML_SP_ENTITY_ID: 'https://sp.example.test',
+  };
+  try {
+    for (const [k, v] of Object.entries(env)) {
+      if (Object.hasOwn(process.env, k)) prev[k] = process.env[k];
+      process.env[k] = v;
+    }
+    const calls = [];
+    const live = createViewerMount({ readReceipt: (...args) => { calls.push(args); return null; } });
+    assert.equal(live.isViewerPath('/saml/login'), true);
+    assert.equal(live.isViewerPath('/saml/acs'), true);
+
+    const req = { method: 'GET', url: '/saml/login', socket: { remoteAddress: '1.2.3.4' } };
+    const res = {
+      statusCode: null,
+      headers: null,
+      writeHead(status, headers) { this.statusCode = status; this.headers = headers; },
+      end() {},
+      write() {},
+    };
+    const handled = live.handle(req, res, new URL('http://host/saml/login'));
+    assert.equal(handled, true);
+    assert.equal(res.statusCode, 302);
+    assert.equal(calls.length, 0, 'the gateway receipt reader is not consulted for a SAML path');
+
+    // A non-SAML path falls through to the gateway: the SAML branch does not
+    // short-circuit, so the gateway (which returns a promise) answers it.
+    const viewerRes = {
+      statusCode: null,
+      writeHead(status) { this.statusCode = status; },
+      end() {},
+      write() {},
+    };
+    const fallthrough = live.handle(
+      { method: 'GET', url: '/viewer/index.html' },
+      viewerRes,
+      new URL('http://host/viewer/index.html'),
+    );
+    assert.notEqual(fallthrough, true, 'a viewer path is not short-circuited by the SAML route');
+  } finally {
+    for (const k of Object.keys(env)) {
+      if (Object.hasOwn(prev, k)) process.env[k] = prev[k];
+      else delete process.env[k];
+    }
+    fs.rmSync(metadataDir, { recursive: true, force: true });
+  }
 });
 
 test('#2128: server.js routes viewer traffic through the mount', () => {

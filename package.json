@@ -1150,6 +1150,7 @@
     "lib/risk-rules.js",
     "lib/risk-target-markers.js",
     "lib/safe-file-walk.js",
+    "lib/saml",
     "lib/secure-file-write.js",
     "lib/sandbox-escape-ledger.js",
     "lib/sandbox-escape-producer.js",
@@ -1576,8 +1577,10 @@
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",
+    "fast-xml-parser": "^5.2.5",
     "js-yaml": "^5.2.3",
-    "proper-lockfile": "4.1.2"
+    "proper-lockfile": "4.1.2",
+    "xml-crypto": "^6.4.0"
   },
   "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
