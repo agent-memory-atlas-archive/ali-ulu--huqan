@@ -71,6 +71,10 @@
     "node": "NODE",
     "time": "TIME"
   },
+  "search": {
+    "noResults": "No results found",
+    "source": "source"
+  },
   "secure": {
     "title": "SECURE CHANNEL",
     "apiKeyRequired": "API key required",
@@ -258,6 +262,9 @@
     "title": "Observability & Queue",
     "description": "Live event stream, persistent run history, performance metrics, alert rules, and a guarded agent queue.",
     "windowFilter": "Time window",
+    "customStart": "Start",
+    "customEnd": "End",
+    "applyRange": "Apply",
     "windows": {
       "1h": "Last hour",
       "24h": "Last 24 hours",
