@@ -472,7 +472,24 @@ test('binding a capability card records it on the hook command and admits a beni
 test('a fresh install with no card bound still says how to issue one', t => {
   const paths = sandbox(t);
   const install = manageGate('install', options(paths, 'openhands'));
+  assert.equal(install.identity.required, false);
+  assert.match(install.identity.reason, /NODE_ENV=production blocks/);
+  assert.match(install.identity.issue, /identity issue/);
+  assert.equal(install.identity.requireEverywhere, 'HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=block');
+});
+
+test('the install notice reports the requirement this environment actually applies', t => {
+  const saved = process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY;
+  process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY = 'block';
+  t.after(() => {
+    if (saved === undefined) delete process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY;
+    else process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY = saved;
+  });
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'openhands'));
   assert.equal(install.identity.required, true);
+  assert.equal(install.identity.requirement, 'block');
+  assert.match(install.identity.reason, /agent_identity_card_required/);
   assert.match(install.identity.issue, /identity issue/);
 });
 
